@@ -1,0 +1,61 @@
+{
+  "name": "clawd-flotante",
+  "version": "1.0.0",
+  "description": "Clawd Flotante: una mascota de escritorio que muestra el progreso de tus sesiones de Claude Code",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "icon": "node tools/make-icon.js",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "author": "Tomás",
+  "build": {
+    "appId": "com.clawd.flotante.compartido",
+    "productName": "Clawd Flotante",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "hooks.js",
+      "preload.js",
+      "preload-ui.js",
+      "preload-sessions.js",
+      "renderer/**",
+      "scripts/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "scripts/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Clawd Flotante",
+      "runAfterFinish": true,
+      "include": "build/installer.nsh",
+      "artifactName": "Clawd-Flotante-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

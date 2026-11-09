@@ -1,0 +1,845 @@
+// Controlador: estado de las sesiones -> acción de Clawd, burbujas, juegos con el ratón, panel, clics y arrastre
+const canvas = document.getElementById('clawd');
+const caption = document.getElementById('caption');
+const panel = document.getElementById('panel');
+const cards = document.getElementById('cards');
+const pinIcon = document.getElementById('pin');
+const sitBtn = document.getElementById('sit');
+const ctx = ClawdSprite.setup(canvas);
+
+let state = { sessions: [], now: Date.now() };
+let clockOffset = 0;
+const prevStatus = new Map();
+const prevDone = new Map();
+const prevTotal = new Map();
+const turnStart = new Map();
+let initialized = false;
+let prevActiveCount = 0;
+let celebrateUntil = 0;
+let preview = null;
+let previewUntil = 0;
+let demoStart = 0;
+let pinned = false;
+let hoverClawd = false;
+let hoverPanel = false;
+let hideTimer = null;
+let ignoring = true;
+let down = null;
+let look = null;
+let cursor = null;       // cursor en coordenadas de la ventana
+let sitting = false;
+let danceOn = true;      // bailar cuando suena música
+
+// ---------- música ----------
+// Para probar: /preview?a=song:funk fuerza una canción especial durante 20 s (song:off para quitarla)
+let forcedSong = null;
+let forcedUntil = 0;
+const forcing = () => !!forcedSong && Date.now() < forcedUntil;
+const media = () => state.media || { playing: false };
+// Si suena una de tus canciones/artistas especiales cuenta como música aunque el filtro de vídeo diga que no
+// (p. ej. un vídeo subido por otro canal con un título sin "Official Video")
+const musicOn = () => danceOn && (!!media().music || forcing() || (!!media().playing && !!matchSpecial(media())));
+function songVars() {
+  const m = media();
+  return { song: m.song || undefined, by: m.by || undefined };
+}
+// Algunas canciones tienen su propio baile (tempo aproximado de cada una)
+const SPECIAL_SONGS = [
+  { key: 'funk', bpm: 115, test: m => /uptown funk/i.test(`${m.song} ${m.title}`) },
+  { key: 'bass', bpm: 110, test: m => /another one bites the dust/i.test(`${m.song} ${m.title}`) },
+  { key: 'gold', bpm: 107, test: m => /24k magic/i.test(`${m.song} ${m.title}`) },
+  { key: 'two', bpm: 100, test: m => /bbno/i.test(`${m.by} ${m.artist} ${m.title}`) && /^two\b/i.test(String(m.song || '').trim()) },
+  // cualquier canción del grupo: basta con que "Angine de Poitrine" aparezca en el título, la canción, el artista o el canal
+  { key: 'angine', bpm: 126, test: m => /angine\s*de\s*poitrine/i.test(norm(`${m.song} ${m.by} ${m.artist} ${m.title}`)) },
+  { key: 'imight', bpm: 112, test: m => /i just might/i.test(`${m.song} ${m.title}`) && /bruno mars/i.test(`${m.by} ${m.artist} ${m.title}`) },
+  { key: 'billie', bpm: 117, test: m => /billie jean/i.test(`${m.song} ${m.title}`) },
+  { key: 'dontstop', bpm: 78, test: m => /don'?t stop me now/i.test(`${m.song} ${m.title}`) && /queen/i.test(`${m.by} ${m.artist} ${m.title}`) },
+  { key: 'burger', bpm: 120, test: m => /bbno/i.test(`${m.by} ${m.artist} ${m.title}`) && /^burger\b/i.test(String(m.song || '').trim()) },
+  { key: 'standing', bpm: 88, test: m => /i'?m still standing/i.test(`${m.song} ${m.title}`) },
+  { key: 'chicago', bpm: 110, test: m => /\bchicago\b/i.test(`${m.song} ${m.title}`) && /michael jackson/i.test(`${m.by} ${m.artist} ${m.title}`) },
+  { key: 'thatswhat', bpm: 134, test: m => /that'?s what i like/i.test(`${m.song} ${m.title}`) },
+];
+const SPECIAL_KEYS = SPECIAL_SONGS.map(s => s.key);
+// quita tildes para comparar nombres ("Poitriné" = "Poitrine")
+function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+function matchSpecial(m) {
+  if (!m || !m.playing) return null;
+  return SPECIAL_SONGS.find(s => { try { return s.test(m); } catch { return false; } }) || null;
+}
+function specialSong() {
+  if (forcing()) return SPECIAL_SONGS.find(s => s.key === forcedSong) || null;
+  if (!danceOn) return null;
+  return matchSpecial(media());
+}
+// Accesorios/efectos especiales: los de la canción que suena, o los de la acción en vista previa
+const specialKey = (special, action) => (special ? special.key : (SPECIAL_KEYS.includes(action) ? action : null));
+function songBpm() {
+  const sp = specialSong();
+  if (sp) return sp.bpm;
+  const key = `${media().song}|${media().by}`;
+  let h = 0;
+  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return 100 + (h % 29);  // cada canción con su "tempo" (100–128)
+}
+let prevMusic = false;
+let prevSongKey = '';
+
+// ---------- burbuja de diálogo ----------
+const Speech = (() => {
+  const el = document.getElementById('bubble');
+  let cur = null;
+  let lastAt = 0;
+  let hideTimer = null;
+  let typer = null;
+
+  // priority: 0 comentario, 1 reacción normal, 2 importante, 3 urgente
+  // opts: dur, cooldown, usage (bloque de uso), lines (lista), buttons [{label, value}] + onAnswer(value)
+  function say(text, priority = 1, opts = {}) {
+    if (!text) return false;
+    const now = Date.now();
+    if (cur && now < cur.until && cur.priority > priority) return false;
+    if (cur && cur.ask && now < cur.until && !opts.buttons) return false;   // no tapar una pregunta abierta
+    if (priority <= 1 && now - lastAt < (opts.cooldown ?? 7000)) return false;
+    if (cur && cur.onAnswer && !cur.answered) { cur.answered = true; cur.onAnswer(null); }
+    lastAt = now;
+    const ask = !!(opts.buttons && opts.buttons.length);
+    const dur = opts.dur || (ask ? 15000 : Math.min(7000, 2400 + text.length * 60));
+    cur = { text, until: now + dur, priority, ask, onAnswer: opts.onAnswer || null, answered: false };
+    const mine = cur;
+    el.className = '';
+    void el.offsetWidth; // reinicia la animación de aparición
+    el.className = (opts.alert ? 'urgent ' : '') + (ask ? 'ask ' : '') + 'pop';
+    const chars = [...text];
+    let i = 0;
+    el.textContent = '';
+    const txt = document.createElement('span');
+    el.appendChild(txt);
+    if (opts.usage) el.appendChild(usageBlock(opts.usage));
+    if (opts.lines) {
+      const ul = document.createElement('div');
+      ul.className = 'lines';
+      for (const l of opts.lines) { const d = document.createElement('div'); d.textContent = l; ul.appendChild(d); }
+      el.appendChild(ul);
+    }
+    if (ask) {
+      const row = document.createElement('div');
+      row.className = 'bubble-btns';
+      for (const b of opts.buttons) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bubble-btn' + (b.primary ? ' primary' : '');
+        btn.textContent = b.label;
+        btn.addEventListener('click', ev => {
+          ev.stopPropagation();
+          if (mine.answered) return;
+          mine.answered = true;
+          if (window.Sound) Sound.play('pop');
+          hide();
+          if (mine.onAnswer) mine.onAnswer(b.value);
+        });
+        row.appendChild(btn);
+      }
+      el.appendChild(row);
+    }
+    clearInterval(typer);
+    typer = setInterval(() => {
+      i += 1;
+      txt.textContent = chars.slice(0, i).join('');
+      if (window.Sound && i % 3 === 1 && chars[i - 1] !== ' ') Sound.blip();
+      if (i >= chars.length) clearInterval(typer);
+    }, 22);
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      if (mine.onAnswer && !mine.answered) { mine.answered = true; mine.onAnswer(null); }
+      hide();
+    }, dur);
+    return true;
+  }
+  function hide() { cur = null; clearInterval(typer); el.className = 'hidden'; }
+  const speaking = () => !!cur && Date.now() < cur.until;
+  const asking = () => !!cur && cur.ask && !cur.answered && Date.now() < cur.until;
+  const sinceLast = () => Date.now() - lastAt;
+  return { say, speaking, asking, sinceLast };
+})();
+const say = (key, priority = 2, opts = {}, vars = {}) => Speech.say(Phrases.pick(key, vars), priority, opts);
+
+// ---------- uso restante del plan (sesión de 5 h y semana) ----------
+const DAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+function resetText(epochSec, weekly) {
+  if (!epochSec) return '';
+  const d = new Date(epochSec * 1000);
+  const ms = d - Date.now();
+  if (ms <= 0) return 'ya se reinició';
+  if (!weekly) {
+    const h = Math.floor(ms / 3600000), m = Math.round((ms % 3600000) / 60000);
+    return `se reinicia en ${h ? h + ' h ' : ''}${m} min`;
+  }
+  const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+  return `se reinicia el ${DAYS[d.getDay()]} ${hh}:${mm}`;
+}
+
+function usageBlock(u) {
+  const box = document.createElement('div');
+  box.className = 'usage';
+  const rows = [['Sesión', u.five_hour, false], ['Semana', u.seven_day, true]];
+  for (const [label, w, weekly] of rows) {
+    if (!w || typeof w.used_percentage !== 'number') continue;
+    const left = Math.max(0, Math.min(100, Math.round(100 - w.used_percentage)));
+    const row = document.createElement('div');
+    row.className = 'u-row';
+    const name = document.createElement('span'); name.className = 'u-name'; name.textContent = label;
+    const bar = document.createElement('span'); bar.className = 'u-bar';
+    const fill = document.createElement('i'); fill.style.width = left + '%';
+    fill.className = left < 15 ? 'low' : left < 40 ? 'mid' : '';
+    bar.appendChild(fill);
+    const pct = document.createElement('span'); pct.className = 'u-pct'; pct.textContent = `${left}% libre`;
+    const when = document.createElement('div'); when.className = 'u-when'; when.textContent = resetText(w.resets_at, weekly);
+    row.append(name, bar, pct);
+    box.append(row, when);
+  }
+  return box;
+}
+
+// Uso válido: tiene al menos una ventana y no ha caducado
+function currentUsageFrom(u) {
+  if (!u) return null;
+  const now = Date.now() / 1000;
+  const ok = w => w && typeof w.used_percentage === 'number' && (!w.resets_at || w.resets_at > now);
+  if (!ok(u.five_hour) && !ok(u.seven_day)) return null;
+  return { five_hour: ok(u.five_hour) ? u.five_hour : null, seven_day: ok(u.seven_day) ? u.seven_day : null };
+}
+
+// ---------- herramienta -> acción ----------
+const CATEGORIES = [
+  ['planning', /TodoWrite|Task(Create|Update|List|Get)|update_plan|wrap_up/i],
+  ['agent', /^Agent$|^Task$|start_session|SendMessage|hand_off|send_message/i],
+  ['web', /WebFetch|WebSearch|Browser|chrome|navigate|get_page_text|read_page|tabs_|web.?fetch/i],
+  ['editing', /Edit|Write|Notebook|str_replace|create_file/i],
+  ['terminal', /Bash|PowerShell|terminal|shell/i],
+  ['searching', /Grep|Glob|search|find|list/i],
+  ['reading', /Read|view|cat/i],
+];
+const LABELS = {
+  editing: '✏️ Escribiendo', reading: '📖 Leyendo', searching: '🔍 Buscando', terminal: '⚡ Ejecutando',
+  web: '🌐 Navegando', agent: '🤖 Coordinando', planning: '📋 Planeando', tinkering: '⚙️ Usando',
+};
+const TOOL_ACTIONS = Object.keys(LABELS);
+const PLAY_ACTIONS = ['walk', 'wave', 'peekaboo', 'highfive', 'beg', 'watch', 'hop', 'dance', 'kiss', 'stretch', 'sit'];
+
+function toolCategory(tool) {
+  for (const [cat, re] of CATEGORIES) if (re.test(tool || '')) return cat;
+  return 'tinkering';
+}
+
+const FILE_RE = /\.[a-z0-9]{1,6}$/i;
+function varsFor(s) {
+  if (!s) return {};
+  const tasks = s.tasks || [];
+  return {
+    // "Sin carpeta" no es un nombre: se eligen frases que no lo mencionen
+    project: s.project === 'Sin carpeta' ? undefined : s.project,
+    file: s.detail && FILE_RE.test(s.detail) ? s.detail : undefined,
+    tool: Panel.shortTool(s.tool) || undefined,
+    done: tasks.filter(t => t.status === 'completed').length,
+    total: tasks.length || undefined,
+  };
+}
+
+function helloKey() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'helloMorning';
+  if (h >= 12 && h < 19) return Math.random() < 0.5 ? 'helloAfternoon' : 'hello';
+  return 'helloNight';
+}
+
+// ---------- estado y reacciones ----------
+const isActive = s => ['waiting', 'working', 'thinking'].includes(s.status);
+
+window.clawd.onState(s => {
+  const now = Date.now();
+  clockOffset = now - s.now;
+
+  const activeCount = s.sessions.filter(isActive).length;
+  if (initialized && activeCount >= 2 && activeCount > prevActiveCount) Speech.say(Phrases.pick('multi', { n: activeCount }), 1, { cooldown: 3000 });
+  prevActiveCount = activeCount;
+
+  for (const sess of s.sessions) {
+    const vars = varsFor(sess);
+    const before = prevStatus.get(sess.id);
+
+    if (initialized && before === undefined) {
+      ClawdSprite.trigger('hello');
+      if (window.Sound) Sound.play('hello');
+      Speech.say(Phrases.pick(helloKey(), vars) || Phrases.pick('hello', vars), 2);
+    }
+
+    if (before !== undefined && before !== sess.status) {
+      if (sess.status === 'thinking') {
+        turnStart.set(sess.id, now);
+        if (Math.random() < 0.7) Speech.say(Phrases.pick('thinking', vars), 1, { cooldown: 4000 });
+      } else if (sess.status === 'waiting') {
+        const m = /usar (.+)$/.exec(sess.message || '');
+        const text = m ? Phrases.pick('waiting', { ...vars, tool: m[1] }) : Phrases.pick('waitingGeneric', vars);
+        Speech.say(text, 3, { dur: 9000, alert: true });
+        if (window.Sound) Sound.play('alert');
+      } else if (sess.status === 'done') {
+        celebrateUntil = now + 3500;
+        const long = now - (turnStart.get(sess.id) || now) > 120000;
+        const u = currentUsageFrom(s.usage);
+        Speech.say(Phrases.pick(long ? 'doneLong' : 'done', vars), u ? 3 : 2, u ? { usage: u, dur: 8000 } : {});
+        if (window.Sound) Sound.play('done');
+        if (window.Extras) Extras.onDone();
+      }
+    }
+
+    // tareas
+    const done = vars.done || 0;
+    const total = (sess.tasks || []).length;
+    const pd = prevDone.get(sess.id);
+    const pt = prevTotal.get(sess.id) || 0;
+    if (initialized && pt === 0 && total > 0) Speech.say(Phrases.pick('planNew', vars), 2);
+    else if (initialized && pd !== undefined && done > pd) {
+      ClawdSprite.trigger('check');
+      if (window.Sound) Sound.play('ding');
+      if (window.Extras) Extras.onTaskDone(done - pd);
+      const u = currentUsageFrom(s.usage);
+      Speech.say(Phrases.pick(done === total ? 'allDone' : 'taskDone', vars), done === total ? 3 : 2, u ? { usage: u, dur: 8000 } : { dur: 2600 });
+    }
+    prevDone.set(sess.id, done);
+    prevTotal.set(sess.id, total);
+  }
+
+  prevStatus.clear();
+  s.sessions.forEach(sess => prevStatus.set(sess.id, sess.status));
+  initialized = true;
+  state = s;
+  reactToMusic();
+  renderPanel();
+});
+
+// Frases cuando empieza, cambia o se para la música
+function reactToMusic() {
+  const on = musicOn();
+  const key = on ? `${media().song}|${media().by}` : '';
+  const v = songVars();
+  const sp = specialSong();
+  if (on && sp && key !== prevSongKey) {
+    Speech.say(Phrases.pick(`song_${sp.key}`, v), 2);               // canción con baile propio
+  } else if (on && !prevMusic) {
+    Speech.say(Phrases.pick('songStart', v) || Phrases.pick('songStartAnon'), 2);
+  } else if (on && prevMusic && key !== prevSongKey) {
+    Speech.say(Phrases.pick('songChange', v) || Phrases.pick('songStartAnon'), 2);
+  } else if (!on && prevMusic && danceOn) {
+    Speech.say(Phrases.pick('songStop'), 1, { cooldown: 2000 });
+  }
+  prevMusic = on;
+  prevSongKey = key;
+}
+
+// De vez en cuando, un comentario sobre la canción
+setInterval(() => {
+  if (!musicOn() || Speech.sinceLast() < 40000 || Math.random() > 0.4) return;
+  const working = !!workingSession();
+  const sp = specialSong();
+  const key = sp && Math.random() < 0.7 ? `mid_${sp.key}` : (working && Math.random() < 0.5 ? 'songWork' : 'songMid');
+  Speech.say(Phrases.pick(key, songVars()), 0, { cooldown: 40000 });
+}, 10000);
+
+// Comentarios espontáneos: trabajo largo, esperas largas y ratos libres
+let lastLongAt = 0;
+let lastWaitNag = 0;
+setInterval(() => {
+  const now = Date.now();
+  const waiting = state.sessions.find(s => s.status === 'waiting');
+  if (waiting && now - lastWaitNag > 30000 && Speech.sinceLast() > 25000) {
+    lastWaitNag = now;
+    Speech.say(Phrases.pick('waitingAgain', varsFor(waiting)), 3, { dur: 5000, alert: true });
+    return;
+  }
+  const w = workingSession();
+  if (w && now - (turnStart.get(w.id) || now) > 60000 && now - lastLongAt > 90000) {
+    lastLongAt = now;
+    Speech.say(Phrases.pick('longWork', varsFor(w)), 1);
+    return;
+  }
+  if ((shown === 'idle' || shown === 'sit') && Speech.sinceLast() > 4 * 60 * 1000 && Math.random() < 0.3) {
+    Speech.say(Phrases.pick('idle'), 0);
+  }
+}, 10000);
+
+const nowPlaying = document.getElementById('nowplaying');
+function renderPanel() {
+  Panel.render(cards, state.sessions, Date.now() - clockOffset);
+  const m = media();
+  if (m.playing && (m.music || matchSpecial(m))) {
+    nowPlaying.className = '';
+    nowPlaying.innerHTML = '';
+    const icon = document.createElement('span'); icon.className = 'np-icon'; icon.textContent = danceOn ? '💃' : '🎵';
+    const txt = document.createElement('span'); txt.className = 'np-text';
+    txt.textContent = m.song || 'Música';
+    if (m.by) { const by = document.createElement('span'); by.className = 'np-by'; by.textContent = ` — ${m.by}`; txt.appendChild(by); }
+    nowPlaying.append(icon, txt);
+  } else nowPlaying.className = 'hidden';
+}
+setInterval(renderPanel, 1000);
+
+// ---------- qué acción toca ----------
+function workingSession() {
+  return state.sessions.filter(s => s.status === 'working').sort((a, b) => b.lastEvent - a.lastEvent)[0];
+}
+
+function desiredAction(now) {
+  if (demoStart) {
+    const list = ClawdSprite.ACTIONS;
+    const i = Math.floor((now - demoStart) / 3500);
+    if (i < list.length) return list[i];
+    demoStart = 0;
+  }
+  if (preview && now < previewUntil) return preview;
+  const ss = state.sessions;
+  if (ss.some(s => s.status === 'waiting')) return 'waiting';
+  if (now < celebrateUntil) return 'celebrate';
+  const w = workingSession();
+  if (w) return toolCategory(w.tool);
+  if (ss.some(s => s.status === 'thinking')) return 'thinking';
+  const last = Math.max(0, ...ss.map(s => s.lastEvent + clockOffset));
+  if (ss.length && now - last < 3 * 60 * 1000) return 'idle';
+  return 'sleeping';
+}
+
+// ---------- juegos con el ratón (solo cuando Claude no tiene nada que hacer) ----------
+const rand = (a, b) => a + Math.random() * (b - a);
+
+function rel() {
+  const r = canvas.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height * (32 / 46);
+  if (!cursor) return { dx: 0, dy: 0, dist: 9999 };
+  const dx = cursor.x - cx, dy = cursor.y - cy;
+  return { dx, dy, dist: Math.hypot(dx, dy) };
+}
+
+let moveAcc = { x: 0, y: 0 };
+function moveBy(dx, dy, ev) {
+  moveAcc.x += dx; moveAcc.y += dy;
+  const ix = Math.trunc(moveAcc.x), iy = Math.trunc(moveAcc.y);
+  if (ix || iy) {
+    moveAcc.x -= ix; moveAcc.y -= iy;
+    window.clawd.moveBy(ix, iy);
+    if (ev) ev.moved = true;
+  }
+}
+const dirTo = r => (r.dx < 0 ? -1 : 1);
+
+// Cada juego: can(r) = si se puede ahora; start(ev, r); update(ev, dt, r) -> false para terminar
+const GAMES = {
+  // 1. Perseguir el cursor
+  chase: {
+    weight: 3,
+    can: r => r.dist > 160 && r.dist < 1100,
+    start(ev) { ev.action = 'walk'; say('chase'); },
+    update(ev, dt, r) {
+      ev.play = { dir: dirTo(r), fast: true };
+      if (r.dist < 70) { ClawdSprite.trigger('poke'); say('chaseWin'); return false; }
+      if (ev.t > 7) { say('chaseLose'); return false; }
+      moveBy((r.dx / r.dist) * 150 * dt, (r.dy / r.dist) * 150 * dt, ev);
+      return true;
+    },
+  },
+  // 2. Huir del cursor
+  flee: {
+    weight: 2,
+    can: r => r.dist < 320,
+    start(ev, r) { ev.action = 'walk'; ev.dir = -dirTo(r); say('flee'); },
+    update(ev, dt, r) {
+      ev.play = { dir: ev.dir, fast: true };
+      moveBy(ev.dir * 170 * dt, (r.dy > 0 ? -1 : 1) * 30 * dt, ev);
+      if (ev.t > 1.7) { if (Math.random() < 0.6) say('fleeSafe', 1, { cooldown: 0 }); return false; }
+      return true;
+    },
+  },
+  // 3. Paseo tranquilo
+  stroll: {
+    weight: 2,
+    start(ev) { ev.action = 'walk'; ev.dir = Math.random() < 0.5 ? -1 : 1; ev.dur = rand(2, 3.5); if (Math.random() < 0.5) say('stroll', 1); },
+    update(ev, dt) { ev.play = { dir: ev.dir }; moveBy(ev.dir * 45 * dt, 0, ev); return ev.t < ev.dur; },
+  },
+  // 4. Saludar al cursor
+  wave: {
+    weight: 2,
+    start(ev, r) { ev.action = 'wave'; ev.play = { dir: dirTo(r) }; say('wave'); },
+    update(ev, dt, r) { ev.play.dir = dirTo(r); return ev.t < 2.6; },
+  },
+  // 5. Cucú
+  peekaboo: {
+    weight: 2,
+    start(ev) { ev.action = 'peekaboo'; },
+    update(ev) { if (ev.t >= 2 && !ev.said) { ev.said = true; say('peek'); } return ev.t < 3.2; },
+  },
+  // 6. Choca esos cinco (pasa el ratón por encima)
+  highfive: {
+    weight: 2,
+    hover: true,
+    start(ev, r) { ev.action = 'highfive'; ev.play = { dir: dirTo(r) }; say('highfive', 2, { dur: 5000 }); },
+    update(ev, dt, r) {
+      if (!ev.play.success) {
+        ev.play.dir = dirTo(r);
+        if (hoverClawd) { ev.play.success = true; ev.won = ev.t; ClawdSprite.trigger('check'); say('highfiveYes', 3); }
+        else if (ev.t > 6) { say('highfiveNo'); return false; }
+        return true;
+      }
+      return ev.t - ev.won < 1.8;
+    },
+  },
+  // 7. Pedir mimos (pasa el ratón por encima)
+  beg: {
+    weight: 2,
+    hover: true,
+    start(ev) { ev.action = 'beg'; ev.play = {}; say('beg', 2, { dur: 5500 }); },
+    update(ev) {
+      if (!ev.play.success) {
+        if (hoverClawd) { ev.play.success = true; ev.won = ev.t; ClawdSprite.trigger('love'); say('begYes', 3); }
+        else if (ev.t > 7) { say('begNo'); return false; }
+        return true;
+      }
+      return ev.t - ev.won < 2.2;
+    },
+  },
+  // 8. Vigilar el cursor con cara de sospecha
+  watch: {
+    weight: 2,
+    start(ev) { ev.action = 'watch'; say('watch'); },
+    update(ev) { return ev.t < 4; },
+  },
+  // 9. Saltitos hacia el cursor
+  hop: {
+    weight: 2,
+    can: r => r.dist > 120 && r.dist < 900,
+    start(ev) { ev.action = 'hop'; say('hop', 1); },
+    update(ev, dt, r) {
+      const ph = (ev.t % 0.6) / 0.6;
+      ev.play = { dir: dirTo(r), hop: ph };
+      if (ph > 0.15 && ph < 0.85 && r.dist > 70) moveBy((r.dx / r.dist) * 120 * dt, (r.dy / r.dist) * 120 * dt, ev);
+      return ev.t < 1.8 && r.dist > 60;
+    },
+  },
+  // 10. Bailar
+  dance: {
+    weight: 2,
+    start(ev) { ev.action = 'dance'; say('dance'); },
+    update(ev) { return ev.t < 4.5; },
+  },
+  // 11. Lanzar un corazón hacia el cursor
+  kiss: {
+    weight: 2,
+    start(ev, r) { ev.action = 'kiss'; ev.play = { dir: dirTo(r) }; say('kiss'); },
+    update(ev) { return ev.t < 2.5; },
+  },
+  // 12. Estirarse
+  stretch: {
+    weight: 1,
+    start(ev) { ev.action = 'stretch'; say('stretch', 1); },
+    update(ev) { return ev.t < 2.2; },
+  },
+};
+
+const Play = { cur: null, nextAt: Date.now() + 15000, last: null };
+
+function startGame(name) {
+  const def = GAMES[name];
+  if (!def) return;
+  const ev = { name, def, t: 0, action: 'idle', play: {}, moved: false };
+  Play.cur = ev;
+  def.start(ev, rel());
+}
+
+function endGame() {
+  if (Play.cur && Play.cur.moved) window.clawd.moveEnd();
+  Play.last = Play.cur ? Play.cur.name : Play.last;
+  Play.cur = null;
+  Play.nextAt = Date.now() + (shownBase === 'sleeping' ? rand(60000, 120000) : rand(12000, 25000));
+}
+
+let shownBase = 'sleeping';
+function playTick(now, dt, base) {
+  shownBase = base;
+  const free = base === 'idle' || base === 'sleeping';
+  const blocked = sitting || down || demoStart || (preview && now < previewUntil);
+  if (Play.cur) {
+    const panelBlocks = document.body.classList.contains('panel-open') && !Play.cur.def.hover && !Play.cur.forced;
+    if ((!free && !Play.cur.forced) || blocked || panelBlocks) { endGame(); return null; }
+    Play.cur.t += dt;
+    if (!Play.cur.def.update(Play.cur, dt, rel())) { endGame(); return null; }
+    return Play.cur;
+  }
+  // con música no empieza juegos nuevos: está ocupado bailando
+  if (!free || blocked || !cursor || musicOn() || document.body.classList.contains('panel-open')) return null;
+  if (now < Play.nextAt) return null;
+  const r = rel();
+  const options = Object.entries(GAMES).filter(([n, g]) => n !== Play.last && (!g.can || g.can(r)));
+  const totalW = options.reduce((a, [, g]) => a + g.weight, 0);
+  let pickW = Math.random() * totalW;
+  for (const [n, g] of options) { pickW -= g.weight; if (pickW <= 0) { startGame(n); break; } }
+  return Play.cur;
+}
+
+// ---------- elegir la acción que se ve ----------
+// Cada acción se muestra al menos 1,3 s, para que no parpadee entre herramientas rápidas
+let shown = 'sleeping';
+let shownAt = 0;
+function pickAction(now, d) {
+  if (d === shown) return shown;
+  const testing = demoStart || (preview && now < previewUntil);
+  const urgent = d === 'waiting' || d === 'celebrate' || testing || PLAY_ACTIONS.includes(d) || PLAY_ACTIONS.includes(shown);
+  const calm = ['sleeping', 'idle', 'waiting', 'celebrate'].includes(shown);
+  if (urgent || calm || now - shownAt > 1300) {
+    const before = shown;
+    shown = d;
+    shownAt = now;
+    if (!testing && !PLAY_ACTIONS.includes(before) && !PLAY_ACTIONS.includes(d)) reactToAction(before, d);
+  }
+  return shown;
+}
+
+function reactToAction(before, now) {
+  if (now === 'sleeping') { Speech.say(Phrases.pick('sleep'), 1); return; }
+  if (before === 'sleeping') { Speech.say(Phrases.pick('wake'), 1, { cooldown: 2000 }); return; }
+  if (TOOL_ACTIONS.includes(now) && Math.random() < 0.75) {
+    Speech.say(Phrases.pick(now, varsFor(workingSession())), 1, { cooldown: 8000 });
+  }
+}
+
+// Leyenda: qué hace y, si hay varias sesiones activas, cuántas (sustituye al antiguo círculo rojo)
+let lastCaption = '';
+function setCaption(action) {
+  let text = '', cls = '';
+  const active = state.sessions.filter(isActive).length;
+  const more = active > 1 ? ` · ${active} sesiones` : '';
+  if (Speech.speaking()) text = '';
+  else if (action === 'waiting') {
+    const s = state.sessions.find(x => x.status === 'waiting');
+    text = s ? `❗ ${s.message}${more}` : '';
+    cls = 'alert';
+  } else if (LABELS[action]) {
+    const w = workingSession();
+    const detail = w ? (action === 'tinkering' ? Panel.shortTool(w.tool) : (w.detail || Panel.shortTool(w.tool))) : '';
+    text = `${LABELS[action]}${detail ? ' ' + detail : ''}${more}`;
+  } else if (action === 'thinking' && active > 1) {
+    text = `💭 Pensando${more}`;
+  } else if (musicOn() && ['dance', 'sit', 'idle', 'sleeping'].includes(action)) {
+    const m = media();
+    text = `🎵 ${m.song || 'Música'}${m.by ? ' — ' + m.by : ''}`;
+  }
+  const key = cls + text;
+  if (key === lastCaption) return;
+  lastCaption = key;
+  caption.textContent = text;
+  caption.className = text ? cls : 'hidden';
+}
+
+let lastFrame = performance.now();
+function frame(ms) {
+  const now = Date.now();
+  const dt = Math.min(0.1, (ms - lastFrame) / 1000);
+  lastFrame = ms;
+  const base = desiredAction(now);
+  const game = playTick(now, dt, base);
+  let want = base;
+  const music = musicOn();
+  const special = specialSong();
+  if (game) want = game.action;
+  else if (sitting && (base === 'idle' || (music && base === 'sleeping'))) want = 'sit'; // sentado (y con música, baila sentado)
+  else if (music && (base === 'idle' || base === 'sleeping')) want = special ? special.key : 'dance'; // Claude libre + música = baile (el especial si es una favorita)
+  // Extras de Windows: subirse a ventanas, ausencia, teclear contigo…
+  const ex = window.Extras ? Extras.frame(now, dt, want, base, !!game) : null;
+  if (ex && ex.want) want = ex.want;
+  const action = pickAction(now, want);
+  ClawdSprite.draw(ctx, ms / 1000, action, {
+    look, dragging: !!(down && down.moved), sitting, play: ex && ex.play ? ex.play : (game ? game.play : null),
+    groove: music ? { bpm: songBpm() } : null,
+    // con el fedora de Chicago o la máscara de Angine de Poitrine no cabe otro sombrero
+    wear: ex ? (['chicago', 'angine'].includes(specialKey(special, action)) ? { ...ex.wear, hat: null } : ex.wear) : null,
+    tired: ex ? ex.tired : false,
+    special: specialKey(special, action),
+  });
+  setCaption(demoStart || (preview && now < previewUntil) ? '' : action);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- "Quédate sentado" ----------
+function setSitting(v, speak = true) {
+  sitting = !!v;
+  sitBtn.textContent = sitting ? '🦀 Puedes moverte' : '🪑 Quédate sentado';
+  sitBtn.classList.toggle('on', sitting);
+  if (sitting && Play.cur) endGame();
+  if (speak) say(sitting ? 'sitOn' : 'sitOff', 2, { dur: 2200 });
+}
+sitBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  setSitting(!sitting);
+  window.clawd.savePref({ sit: sitting });
+});
+window.clawd.onPrefs(p => applyPrefs(p, false));
+function applyPrefs(p, speak) {
+  if (!p) return;
+  if ('sit' in p) setSitting(!!p.sit, speak && p.sit !== sitting);
+  if ('dance' in p) setDance(p.dance !== false, false);
+  if (window.Extras) Extras.setPrefs(p);
+}
+
+// ---------- 🎵 bailar con música ----------
+const danceBtn = document.getElementById('dance');
+function setDance(v, speak = true) {
+  danceOn = !!v;
+  danceBtn.classList.toggle('on', danceOn);
+  danceBtn.title = danceOn ? 'Bailando con la música (clic para desactivar)' : 'No baila con la música (clic para activar)';
+  if (speak) say(danceOn ? 'danceOn' : 'danceOff', 2, { dur: 2200 });
+  prevMusic = musicOn();
+  renderPanel();
+}
+danceBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  setDance(!danceOn);
+  window.clawd.savePref({ dance: danceOn });
+});
+
+// ---------- posición adaptable ----------
+window.clawd.onLayout(l => {
+  document.body.classList.toggle('flip-v', !!l.down);
+  document.body.classList.toggle('flip-h', !!l.left);
+});
+
+// ---------- panel: hover / fijar ----------
+function updatePanel() {
+  // en "choca esos cinco", "mimos" o si Clawd te está preguntando algo, el panel no estorba
+  const hoverGame = (Play.cur && Play.cur.def.hover) || Speech.asking();
+  const show = pinned || ((hoverClawd && !hoverGame || hoverPanel) && !(down && down.moved));
+  pinIcon.classList.toggle('on', pinned);
+  clearTimeout(hideTimer);
+  if (show) { panel.classList.remove('hidden'); document.body.classList.add('panel-open'); }
+  else {
+    hideTimer = setTimeout(() => {
+      panel.classList.add('hidden');
+      document.body.classList.remove('panel-open');
+    }, 350);
+  }
+}
+
+// ---------- clics que atraviesan las zonas transparentes ----------
+function onClawdPixel(x, y) {
+  const r = canvas.getBoundingClientRect();
+  return ClawdSprite.isOpaque(x - r.left, y - r.top, r.width, r.height);
+}
+
+function hitTest(x, y, inside = true) {
+  const el = inside ? document.elementFromPoint(x, y) : null;
+  const panelOpen = !panel.classList.contains('hidden');
+  const onClawd = !!(el && el.closest('#clawd')) && onClawdPixel(x, y);
+  const onPanel = !!(el && el.closest('#panel')) && panelOpen;
+  const onBtn = !!(el && el.closest('.bubble-btn'));
+  const hit = onClawd || onPanel || onBtn;
+  if (!down && hit === ignoring) { ignoring = !hit; window.clawd.setIgnore(!hit); }
+  if (onClawd !== hoverClawd || onPanel !== hoverPanel) {
+    hoverClawd = onClawd;
+    hoverPanel = onPanel;
+    canvas.style.cursor = onClawd ? 'grab' : 'default';
+    updatePanel();
+  }
+}
+
+document.addEventListener('mousemove', e => { if (!down) hitTest(e.clientX, e.clientY); });
+window.clawd.onCursor(p => {
+  cursor = { x: p.x, y: p.y };
+  // Clawd sigue el cursor con la mirada (coordenadas en píxeles de la rejilla del sprite)
+  const r = canvas.getBoundingClientRect();
+  look = { x: ((p.x - r.left) / r.width) * 40, y: ((p.y - r.top) / r.height) * 46 };
+  if (!down) hitTest(p.x, p.y, p.inside);
+});
+
+// ---------- arrastrar, tocar y hacer clic en Clawd ----------
+canvas.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || !hoverClawd) return;
+  if (Play.cur && Play.cur.def.hover) return; // en esos juegos basta con pasar por encima
+  canvas.setPointerCapture(e.pointerId);
+  down = { x: e.screenX, y: e.screenY, moved: false };
+  window.clawd.dragStart(e.screenX, e.screenY);
+});
+canvas.addEventListener('pointermove', e => {
+  if (!down) return;
+  if (!down.moved && Math.abs(e.screenX - down.x) + Math.abs(e.screenY - down.y) > 4) {
+    down.moved = true;
+    updatePanel();
+    Speech.say(Phrases.pick('drag'), 2, { dur: 1600 });
+  }
+  if (down.moved) window.clawd.dragMove(e.screenX, e.screenY);
+});
+function endDrag() {
+  if (!down) return;
+  window.clawd.dragEnd();
+  const moved = down.moved;
+  down = null;
+  if (moved) {
+    if (window.Extras) Extras.onDragged();
+    if (Math.random() < 0.6) Speech.say(Phrases.pick('drop'), 2, { dur: 2000 });
+  } else {
+    ClawdSprite.trigger('poke');
+    if (window.Sound) Sound.play('pop');
+    pinned = !pinned;
+    if (!pinned) Speech.say(Phrases.pick('poke'), 2, { dur: 1800 });
+  }
+  updatePanel();
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('contextmenu', e => { e.preventDefault(); window.clawd.contextMenu(); });
+
+// ---------- 🙈 Ocultar (vuelve con Ctrl+Alt+C o con el icono de la bandeja) ----------
+document.getElementById('hidebtn').addEventListener('click', e => {
+  e.stopPropagation();
+  pinned = false;
+  hoverClawd = hoverPanel = false;
+  panel.classList.add('hidden');
+  document.body.classList.remove('panel-open');
+  window.clawd.hideByUser();
+});
+
+// ---------- ⚙️ ajustes y 📖 tutorial ----------
+document.getElementById('settingsbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.openUi('settings'); });
+document.getElementById('tutorialbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.openUi('tutorial'); });
+
+window.clawd.onCommand(c => {
+  if (c === 'toggle-pin') { pinned = !pinned; updatePanel(); }
+  else if (c === 'shown') {
+    hoverClawd = hoverPanel = false;
+    updatePanel();
+    Speech.say('¡Aquí estoy de nuevo! 👋', 2, { dur: 2200 });
+  }
+  else if (c === 'demo') demoStart = Date.now();
+  else if (c && typeof c.sit === 'boolean') setSitting(c.sit);
+  else if (c && typeof c.dance === 'boolean') setDance(c.dance);
+  else if (c && c.prefs) applyPrefs(c.prefs, false);
+  else if (c && c.dev && window.Extras) Extras.onDev(c);
+  else if (c && c.summary && window.Extras) Extras.onSummary(c.summary);
+  else if (c && c.say) Speech.say(c.say, 2);
+  else if (c && c.preview) {
+    if (c.preview.startsWith('song:')) {             // forzar una canción especial: /preview?a=song:funk
+      const k = c.preview.slice(5);
+      forcedSong = k === 'off' ? null : k;
+      forcedUntil = Date.now() + 20000;
+    } else if (c.preview.startsWith('x:')) {         // probar un extra de Windows: /preview?a=x:summary
+      if (window.Extras) Extras.preview(c.preview.slice(2));
+    } else if (c.preview.startsWith('play:')) {      // probar un juego: /preview?a=play:chase
+      if (Play.cur) endGame();
+      startGame(c.preview.slice(5));
+      if (Play.cur) Play.cur.forced = true;
+    } else if (c.preview === 'usage') {             // probar la burbuja de uso
+      const now = Date.now() / 1000;
+      const u = currentUsageFrom(state.usage) || { five_hour: { used_percentage: 23.5, resets_at: now + 7800 }, seven_day: { used_percentage: 41.2, resets_at: now + 3 * 86400 } };
+      Speech.say(Phrases.pick('taskDone', { done: 3, total: 5 }), 3, { usage: u, dur: 8000 });
+    } else if (c.preview === 'sit-on' || c.preview === 'sit-off') {
+      setSitting(c.preview === 'sit-on');
+      window.clawd.savePref({ sit: sitting });
+    } else if (['check', 'hello', 'poke', 'love'].includes(c.preview)) ClawdSprite.trigger(c.preview);
+    else { preview = c.preview; previewUntil = Date.now() + (c.ms || 8000); }
+  }
+});
