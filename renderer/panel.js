@@ -52,11 +52,25 @@ const Panel = (() => {
 
   function render(el, sessions, now) {
     if (!sessions.length) {
-      el.innerHTML = '<div class="empty">No hay sesiones activas.<br>Clawd está durmiendo 😴</div>';
+      el.innerHTML = '<div class="empty">No hay sesiones de Claude Code abiertas.<br>Abre una y aquí verás cómo va 👀</div>';
       return;
     }
     el.innerHTML = sessions.map(s => card(s, now)).join('');
   }
 
-  return { render, shortTool };
+  // Botón de la rejilla: icono arriba, texto abajo (sin rehacer el botón si no cambia nada)
+  function tile(btn, icon, label) {
+    if (!btn) return;
+    let i = btn.querySelector('.t-i'), l = btn.querySelector('.t-l');
+    if (!i || !l) {
+      btn.textContent = '';
+      i = document.createElement('span'); i.className = 't-i';
+      l = document.createElement('span'); l.className = 't-l';
+      btn.append(i, l);
+    }
+    if (i.textContent !== icon) i.textContent = icon;
+    if (l.textContent !== label) l.textContent = label;
+  }
+
+  return { render, shortTool, tile };
 })();

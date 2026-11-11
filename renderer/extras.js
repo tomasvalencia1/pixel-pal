@@ -490,7 +490,7 @@ const Extras = (() => {
   function setSound(v) {
     Sound.set(v);
     soundBtn.classList.toggle('on', !!v);
-    soundBtn.textContent = v ? '🔊 Sonido' : '🔇 Sonido';
+    Panel.tile(soundBtn, v ? '🔊' : '🔇', 'Sonido');
   }
   soundBtn.addEventListener('click', e => {
     e.stopPropagation();

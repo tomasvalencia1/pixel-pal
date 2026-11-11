@@ -8,28 +8,32 @@
 </head>
 <body>
   <div id="panel" class="hit hidden">
-    <div class="panel-head">
-      <span class="panel-title">Sesiones</span>
-      <span class="head-right">
-        <button id="sit" class="sit-btn" type="button">🪑 Quédate sentado</button>
-        <span id="pin" class="pin" title="Panel fijado">📌</span>
-      </span>
+    <div class="p-head">
+      <span class="p-avatar" id="pAvatar">🦀</span>
+      <div class="p-id">
+        <div class="p-top"><span class="p-name" id="pName">Clawd</span><span id="pin" class="pin" title="Panel fijado (clic en Clawd para soltarlo)">📌</span></div>
+        <div id="boost" class="boost" title="Ver tus logros"></div>
+      </div>
     </div>
-    <div class="opts">
-      <button id="dance" class="chip on" type="button" title="Bailar cuando suene música">🎵 Baile</button>
-      <button id="sound" class="chip on" type="button" title="Sonidos de Clawd">🔊 Sonido</button>
-      <button id="sessbtn" class="chip" type="button" title="Ventana de sesiones">🗂 Sesiones</button>
-      <button id="hidebtn" class="chip" type="button" title="Vuelve con Ctrl+Alt+C o con el icono de la bandeja">🙈 Ocultar</button>
+    <div class="tiles">
+      <button id="talkbtn" class="tile" type="button" title="Hablar con Clawd (Ctrl+Alt+Espacio)"><span class="t-i">💬</span><span class="t-l">Hablar</span></button>
+      <button id="pomobtn" class="tile" type="button" title="Modo enfoque: 25 min de trabajo y 5 de descanso"><span class="t-i">🍅</span><span class="t-l">Enfoque</span></button>
+      <button id="rembtn" class="tile" type="button" title="Recordatorio rápido"><span class="t-i">⏰</span><span class="t-l">Recordar</span></button>
+      <button id="hatbtn" class="tile" type="button" title="Personajes y accesorios (todo gratis)"><span class="t-i">🛍️</span><span class="t-l">Tienda</span></button>
+      <button id="sit" class="tile" type="button" title="Quedarse quieto en su sitio"><span class="t-i">🪑</span><span class="t-l">Sentado</span></button>
+      <button id="dance" class="tile on" type="button" title="Bailar cuando suene música"><span class="t-i">🎵</span><span class="t-l">Baile</span></button>
+      <button id="sound" class="tile on" type="button" title="Sonidos de Clawd"><span class="t-i">🔊</span><span class="t-l">Sonido</span></button>
+      <button id="morebtn" class="tile" type="button" title="Más opciones"><span class="t-i">⋯</span><span class="t-l">Más</span></button>
     </div>
-    <div class="opts">
-      <button id="settingsbtn" class="chip" type="button" title="Ajustes">⚙️ Ajustes</button>
-      <button id="tutorialbtn" class="chip" type="button" title="Ver el tutorial">📖 Tutorial</button>
-    </div>
-    <div class="opts">
-      <button id="talkbtn" class="chip" type="button" title="Hablar con Clawd (Ctrl+Alt+Espacio)">💬 Hablar</button>
-      <button id="pomobtn" class="chip" type="button" title="Modo enfoque: 25 min de trabajo y 5 de descanso">🍅 Enfoque</button>
-      <button id="rembtn" class="chip" type="button" title="Recordatorio rápido">⏰ Recordar</button>
-      <button id="hatbtn" class="chip" type="button" title="Personajes y accesorios (todo gratis)">🛍️ Tienda</button>
+    <div id="more" class="more hidden">
+      <div class="more-row">
+        <button id="sessbtn" class="chip" type="button" title="Ventana de sesiones (también al soltar un archivo sobre Clawd)">🗂 Sesiones</button>
+        <button id="brainbtn" class="chip" type="button" title="Charlar de todo con Claude Haiku (opcional, con tu clave)">🧠 Haiku</button>
+        <button id="settingsbtn" class="chip" type="button" title="Conexión con Claude Code, arranque con Windows">🔌 Ajustes</button>
+        <button id="tutorialbtn" class="chip" type="button" title="Ver el tutorial otra vez">📖 Tutorial</button>
+        <button id="optbtn" class="chip" type="button" title="Todas las opciones: subirse a ventanas, pantalla completa, notificaciones…">⚙️ Opciones</button>
+        <button id="hidebtn" class="chip" type="button" title="Vuelve con Ctrl+Alt+C o con el icono de la bandeja">🙈 Ocultar</button>
+      </div>
     </div>
     <div id="remform" class="remform hidden">
       <input id="remtext" type="text" maxlength="80" placeholder="¿Qué te recuerdo? (opcional)" autocomplete="off">
@@ -40,8 +44,8 @@
       </div>
       <div id="remlist"></div>
     </div>
-    <div id="boost" class="boost" title="Ver tus logros"></div>
     <div id="nowplaying" class="hidden"></div>
+    <div class="p-section"><span>Sesiones de Claude</span><span id="pCount"></span></div>
     <div id="cards"></div>
   </div>
 
@@ -78,5 +82,6 @@
   <script src="boost.js"></script>
   <script src="characters.js"></script>
   <script src="talk.js"></script>
+  <script src="menu.js"></script>
 </body>
 </html>

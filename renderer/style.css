@@ -309,3 +309,36 @@ body.talk-open #bubble:not(.ask), body.talk-open #caption { visibility: hidden; 
 .talk-mic { background: rgba(255, 255, 255, 0.1); }
 .talk-mic.on { background: rgba(229, 72, 77, 0.3); animation: pulse 1s infinite; }
 .talk-send { color: #fff; background: var(--orange); }
+
+/* ---------- panel v2: cabecera, rejilla de botones y "Más" ---------- */
+#panel { width: 320px; padding: 12px; border-radius: 16px; background: rgba(28, 26, 24, 0.97); border: 1px solid rgba(255, 255, 255, 0.09); }
+.p-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.p-avatar { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 22px; border-radius: 12px; background: rgba(217, 119, 87, 0.16); border: 1px solid rgba(217, 119, 87, 0.35); }
+.p-id { flex: 1; min-width: 0; }
+.p-top { display: flex; align-items: center; gap: 6px; }
+.p-name { font-weight: 700; font-size: 14px; flex: 1; }
+.p-head .boost { margin: 2px 0 0; padding: 0; background: none; border-radius: 0; }
+.p-head .boost:hover { background: none; opacity: 0.85; }
+.p-head .lv { font-size: 11.5px; }
+.p-head .bstats { font-size: 11px; margin-top: 1px; }
+
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.tile {
+  font: inherit; color: var(--muted); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px; padding: 7px 2px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  transition: background 0.12s ease, transform 0.12s ease, border-color 0.12s ease;
+}
+.tile:hover { background: rgba(255, 255, 255, 0.11); color: var(--text); transform: translateY(-1px); }
+.tile:active { transform: translateY(0); }
+.tile .t-i { font-size: 17px; line-height: 1.15; }
+.tile .t-l { font-size: 10.5px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tile.on { color: var(--text); background: rgba(217, 119, 87, 0.22); border-color: rgba(217, 119, 87, 0.6); }
+#pomobtn.on .t-l { color: #ffd2c2; }
+
+.more { margin: 0 0 8px; padding: 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); }
+.more-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.more .chip { color: var(--text); }
+
+.p-section { display: flex; justify-content: space-between; align-items: center; margin: 2px 2px 6px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.p-section #pCount { text-transform: none; letter-spacing: 0; font-weight: 500; }
+#panel .empty { padding: 10px 6px; font-size: 12px; }

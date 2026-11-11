@@ -372,6 +372,13 @@ const Talk = (() => {
     else if (c === 'brain-changed') refreshBrain();
     else if (c && typeof c.preview === 'string' && c.preview.startsWith('t:')) { show(); send(decodeURIComponent(c.preview.slice(2)).replace(/-/g, ' ')); }
   });
+  // Con la conversación abierta las burbujas de Clawd no se ven: los avisos importantes se copian aquí
+  const originalSay = Speech.say;
+  Speech.say = (text, priority = 1, opts = {}) => {
+    const shown = originalSay(text, priority, opts);
+    if (shown && open && priority >= 2 && !(opts && opts.buttons)) add('bot', text, { lines: opts && opts.lines });
+    return shown;
+  };
   refreshBrain();
 
   return { show, hide, isOpen: () => open, send, local, parseWhen };

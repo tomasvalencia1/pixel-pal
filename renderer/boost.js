@@ -203,7 +203,7 @@ const Boost = (() => {
     if (!btn) return;
     const left = pomo.until - Date.now();
     btn.classList.toggle('on', pomo.mode !== 'off');
-    btn.textContent = pomo.mode === 'focus' ? `🍅 ${clock(left)}` : pomo.mode === 'break' ? `☕ ${clock(left)}` : '🍅 Enfoque';
+    Panel.tile(btn, pomo.mode === 'break' ? '☕' : '🍅', pomo.mode === 'off' ? 'Enfoque' : clock(left));
   }
 
   // ======================================================================
@@ -280,7 +280,7 @@ const Boost = (() => {
       list.appendChild(row);
     }
     const btn = $('rembtn');
-    if (btn) btn.textContent = data.reminders.length ? `⏰ Recordar (${data.reminders.length})` : '⏰ Recordar';
+    if (btn) Panel.tile(btn, '⏰', data.reminders.length ? `Recordar · ${data.reminders.length}` : 'Recordar');
   }
   function remindTick(now) {
     const due = data.reminders.filter(r => r.at <= now).sort((a, b) => a.at - b.at)[0];

@@ -674,7 +674,8 @@ requestAnimationFrame(frame);
 // ---------- "Quédate sentado" ----------
 function setSitting(v, speak = true) {
   sitting = !!v;
-  sitBtn.textContent = sitting ? '🦀 Puedes moverte' : '🪑 Quédate sentado';
+  Panel.tile(sitBtn, '🪑', sitting ? 'Sentado ✓' : 'Sentado');
+  sitBtn.title = sitting ? 'Clic para que vuelva a moverse' : 'Quedarse quieto en su sitio';
   sitBtn.classList.toggle('on', sitting);
   if (sitting && Play.cur) endGame();
   if (speak) say(sitting ? 'sitOn' : 'sitOff', 2, { dur: 2200 });
