@@ -22,5 +22,13 @@ contextBridge.exposeInMainWorld('clawd', {
   dragMove: (x, y) => ipcRenderer.send('drag-move', { x, y }),
   dragEnd: () => ipcRenderer.send('drag-end'),
   contextMenu: () => ipcRenderer.send('context-menu'),
+  // ⭐ progreso, 🔔 avisos de Windows y ⌨️ teclado para escribir un recordatorio
+  progressLoad: () => ipcRenderer.invoke('progress-load'),
+  progressSave: d => ipcRenderer.send('progress-save', d),
+  notify: (title, body) => ipcRenderer.send('notify', { title: String(title || ''), body: String(body || '') }),
+  inputFocus: on => ipcRenderer.send('input-focus', !!on),
+  // 🛍️ personaje y accesorios
+  setOutfit: p => ipcRenderer.send('outfit-set', p && typeof p === 'object' ? p : {}),
+  openShop: () => ipcRenderer.send('shop-open'),
   openUi: page => ipcRenderer.invoke('ui:open', page),
 });

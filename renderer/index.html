@@ -25,6 +25,21 @@
       <button id="settingsbtn" class="chip" type="button" title="Ajustes">⚙️ Ajustes</button>
       <button id="tutorialbtn" class="chip" type="button" title="Ver el tutorial">📖 Tutorial</button>
     </div>
+    <div class="opts">
+      <button id="pomobtn" class="chip" type="button" title="Modo enfoque: 25 min de trabajo y 5 de descanso">🍅 Enfoque</button>
+      <button id="rembtn" class="chip" type="button" title="Recordatorio rápido">⏰ Recordar</button>
+      <button id="hatbtn" class="chip" type="button" title="Personajes y accesorios (todo gratis)">🛍️ Tienda</button>
+    </div>
+    <div id="remform" class="remform hidden">
+      <input id="remtext" type="text" maxlength="80" placeholder="¿Qué te recuerdo? (opcional)" autocomplete="off">
+      <div class="rem-row">
+        <button class="chip" type="button" data-min="10">10 min</button>
+        <button class="chip" type="button" data-min="30">30 min</button>
+        <button class="chip" type="button" data-min="60">1 hora</button>
+      </div>
+      <div id="remlist"></div>
+    </div>
+    <div id="boost" class="boost" title="Ver tus logros"></div>
     <div id="nowplaying" class="hidden"></div>
     <div id="cards"></div>
   </div>
@@ -37,10 +52,14 @@
     </div>
   </div>
 
+  <script src="catalog.js"></script>
   <script src="clawd.js"></script>
+  <script src="skins.js"></script>
   <script src="phrases.js"></script>
   <script src="panel.js"></script>
   <script src="app.js"></script>
   <script src="extras.js"></script>
+  <script src="boost.js"></script>
+  <script src="characters.js"></script>
 </body>
 </html>

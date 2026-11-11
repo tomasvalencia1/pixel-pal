@@ -651,7 +651,36 @@ function toggleVisible() {
   else { win.showInactive(); keepOnTop(); sendCommand('shown'); }
 }
 
+// ---------- 🛍️ tienda: personaje y accesorios (todo gratis; algunos sombreros por nivel) ----------
+const CATALOG = require('./renderer/catalog.js');
+let shopWin = null;
+function currentLevel() { const p = readJson(path.join(DIR, 'progress.json'), null); return CATALOG.levelOf(p && p.xp); }
+function getOutfit() { return CATALOG.clean(config.outfit, currentLevel()); }
+function setOutfit(patch) {
+  const next = CATALOG.clean({ ...getOutfit(), ...(patch && typeof patch === 'object' ? patch : {}) }, currentLevel());
+  saveConfig({ outfit: next });
+  sendCommand({ outfit: next });
+  if (shopWin && !shopWin.isDestroyed()) shopWin.webContents.send('shop-update', { outfit: next, level: currentLevel() });
+  return next;
+}
+function openShop() {
+  if (shopWin && !shopWin.isDestroyed()) { shopWin.show(); shopWin.focus(); return; }
+  shopWin = new BrowserWindow({
+    width: 640, height: 520, minWidth: 560, minHeight: 440, center: true, frame: false, resizable: true,
+    backgroundColor: '#1c1a18', title: 'Tienda de Clawd', show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload-shop.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  shopWin.loadFile(path.join(__dirname, 'renderer', 'shop.html'));
+  shopWin.once('ready-to-show', () => { shopWin.show(); shopWin.focus(); });
+  shopWin.on('closed', () => { shopWin = null; });
+}
+
 function setupIpc() {
+  ipcMain.on('outfit-set', (_e, p) => setOutfit(p));
+  ipcMain.on('shop-open', () => openShop());
+  ipcMain.handle('shop-get', () => ({ outfit: getOutfit(), level: currentLevel() }));
+  ipcMain.handle('shop-set', (_e, p) => ({ outfit: setOutfit(p), level: currentLevel() }));
+  ipcMain.on('shop-close', () => { if (shopWin && !shopWin.isDestroyed()) shopWin.close(); });
   ipcMain.on('set-ignore', (_e, ignore) => { if (win) win.setIgnoreMouseEvents(!!ignore, { forward: true }); });
 
   let drag = null;
@@ -668,12 +697,31 @@ function setupIpc() {
     applyLayout();
   });
   ipcMain.on('move-end', () => saveConfig({ anchor, pos: null }));
+  // ⭐ Progreso (niveles, logros, recordatorios) guardado junto al resto de datos de Clawd
+  const PROGRESS_FILE = path.join(DIR, 'progress.json');
+  ipcMain.handle('progress-load', () => readJson(PROGRESS_FILE, null));
+  ipcMain.on('progress-save', (_e, d) => {
+    if (!d || typeof d !== 'object') return;
+    try { if (JSON.stringify(d).length < 200000) writeJson(PROGRESS_FILE, d); } catch { /* nada */ }
+  });
+  // 🔔 Aviso de Windows (pomodoro, recordatorios)
+  ipcMain.on('notify', (_e, n) => {
+    if (!n || config.notifications === false) return;
+    notify(String(n.title || 'Clawd').slice(0, 80), String(n.body || '').slice(0, 200));
+  });
+  // ⌨️ Para escribir un recordatorio, la ventana de Clawd recibe el teclado solo mientras escribes
+  ipcMain.on('input-focus', (_e, on) => {
+    if (!win || win.isDestroyed()) return;
+    win.setFocusable(!!on);
+    if (on) win.focus();
+  });
   ipcMain.on('save-pref', (_e, p) => {
     if (!p || typeof p !== 'object') return;
     const patch = {};
     if ('sit' in p) patch.sit = !!p.sit;
     if ('dance' in p) patch.dance = !!p.dance;
     if ('sound' in p) patch.sound = !!p.sound;
+    if ('breaks' in p) patch.breaks = !!p.breaks;
     if (['ask', 'always', 'never'].includes(p.ride)) patch.ride = p.ride;
     if (['ask', 'always', 'never'].includes(p.fsHide)) patch.fsHide = p.fsHide;
     if (p.appMode && typeof p.appMode.app === 'string') patch.appModes = { ...(config.appModes || {}), [p.appMode.app]: !!p.appMode.on };
@@ -722,6 +770,7 @@ function setupIpc() {
       { label: '⚙️ Ajustes…', click: () => openUi('settings') },
       { label: '📖 Ver el tutorial', click: () => openUi('tutorial') },
       { type: 'separator' },
+      { label: '🛍️ Tienda: personajes y accesorios', click: openShop },
       { label: 'Fijar / soltar panel', click: () => send('toggle-pin') },
       { label: 'Ver animaciones (demo)', click: () => send('demo') },
       { type: 'checkbox', label: 'Quédate sentado', checked: !!config.sit, click: m => { saveConfig({ sit: m.checked }); send({ sit: m.checked }); } },
@@ -734,6 +783,7 @@ function setupIpc() {
       { label: 'Ventana de sesiones', click: () => openSessionsWindow(null) },
       { label: 'Quitar sesiones terminadas', click: () => { for (const [id, s] of sessions) if (s.status === 'done' || s.status === 'idle') sessions.delete(id); changed(); } },
       { type: 'checkbox', label: 'Notificaciones de Windows', checked: config.notifications !== false, click: m => saveConfig({ notifications: m.checked }) },
+      { type: 'checkbox', label: 'Recordatorios de descanso y agua', checked: config.breaks !== false, click: m => { saveConfig({ breaks: m.checked }); send({ prefs: prefsPayload() }); } },
       { type: 'separator' },
       { label: 'Ocultar (vuelve con Ctrl+Alt+C o la bandeja)', click: () => win.hide() },
       { label: 'Salir', click: () => app.quit() },
@@ -743,7 +793,7 @@ function setupIpc() {
 
 function prefsPayload() {
   return {
-    sit: !!config.sit, dance: config.dance !== false, sound: config.sound !== false,
+    sit: !!config.sit, dance: config.dance !== false, sound: config.sound !== false, breaks: config.breaks !== false, outfit: getOutfit(),
     ride: config.ride || 'ask', fsHide: config.fsHide || 'ask', appModes: config.appModes || {},
   };
 }
@@ -906,6 +956,7 @@ function setupTray() {
     { label: 'Mostrar / ocultar a Clawd   (Ctrl+Alt+C)', click: toggleVisible },
     { label: 'Ajustes…', click: () => openUi('settings') },
     { label: 'Ver el tutorial', click: () => openUi('tutorial') },
+    { label: 'Tienda: personajes y accesorios', click: openShop },
     { label: 'Volver a la esquina', click: () => { anchor = defaultAnchor(); applyLayout(); saveConfig({ anchor, pos: null }); } },
     { type: 'separator' },
     { label: 'Salir', click: () => app.quit() },

@@ -108,6 +108,34 @@ const STEPS = [
       </div>`,
   },
   {
+    title: 'Te ayudo a concentrarte 🍅',
+    anim: [['sit', 'Modo enfoque'], ['stretch', 'Descanso'], ['celebrate', '¡Subí de nivel!']],
+    html: `
+      <div class="grid2">
+        <div class="card"><b>🍅 Modo enfoque</b>Botón «Enfoque» del panel: 25 min de trabajo y 5 de descanso. Me pongo la cinta y me concentro contigo.</div>
+        <div class="card"><b>🧘 Descansos y agua</b>Si llevas mucho rato seguido, te recuerdo beber agua, estirarte o descansar la vista.</div>
+        <div class="card"><b>⭐ Niveles y rachas</b>Gano experiencia con cada tarea de Claude, cada pomodoro y cada descanso. Llevo tu racha de días.</div>
+        <div class="card"><b>🏅 Logros</b>16 logros por desbloquear. Pulsa la barra de nivel del panel para verlos.</div>
+        <div class="card"><b>⏰ Recordatorios</b>Botón «Recordar»: escribe una nota y elige 10 min, 30 min o 1 hora.</div>
+        <div class="card"><b>🔕 A tu gusto</b>Los avisos de descanso se apagan en el menú del clic derecho.</div>
+      </div>
+      <div class="tries">
+        <button class="btn sm" data-try="b:pomo" type="button">Probar: modo enfoque</button>
+        <button class="btn sm" data-try="b:ach" type="button">Ver logros</button>
+      </div>`,
+  },
+  {
+    title: 'Elige tu personaje 🛍️',
+    anim: [['wave', 'Clawd', 'clawd'], ['wave', 'Bolt, el robot', 'bolt'], ['wave', 'Miso, el gatito', 'miso'], ['wave', 'Nube, el fantasma', 'nube'], ['wave', 'Rin, la rana', 'rin'], ['wave', 'Chispa, el dragón', 'chispa']],
+    html: `
+      <p>En la <b>🛍️ Tienda</b> (panel, clic derecho o bandeja) puedes cambiar de personaje: <b>Clawd</b>, <b>Bolt</b> 🤖, <b>Miso</b> 🐱, <b>Nube</b> 👻, <b>Rin</b> 🐸 y <b>Chispa</b> 🐉. Todos hacen todas las animaciones y tienen su propia personalidad.</p>
+      <p>También hay <b>sombreros, gafas y cosas para el cuello</b>, todo gratis. Algunos sombreros especiales se desbloquean subiendo de nivel.</p>
+      <div class="tip">🥚 Pista: cada personaje esconde sorpresas. Prueba a tocarlo <b>5 veces seguidas</b>… y atento a ciertas horas del día.</div>
+      <div class="tries">
+        <button class="btn sm" data-try="b:hat" type="button">Abrir la tienda</button>
+      </div>`,
+  },
+  {
     title: '¡Todo listo! 🎉',
     anim: [['celebrate', '¡Bienvenido!'], ['love', '']],
     finish: true,
@@ -135,8 +163,9 @@ let animAt = 0;
 function frame(ms) {
   const t = ms / 1000;
   const s = STEPS[step];
-  if (t - animAt > 3.2 && s.anim.length > 1) { animIdx = (animIdx + 1) % s.anim.length; animAt = t; }
-  const [action, label] = s.anim[animIdx % s.anim.length];
+  if (t - animAt > (s.anim[0][2] ? 2.2 : 3.2) && s.anim.length > 1) { animIdx = (animIdx + 1) % s.anim.length; animAt = t; }
+  const [action, label, skinId] = s.anim[animIdx % s.anim.length];
+  ClawdSprite.setSkin(window.Skins && skinId ? Skins.get(skinId) : null);
   ClawdSprite.draw(null, t, action, { groove: s.groove ? { bpm: 112 } : null });
   $('label').textContent = label;
   requestAnimationFrame(frame);

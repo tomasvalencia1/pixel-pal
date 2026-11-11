@@ -404,6 +404,7 @@ const Extras = (() => {
   // 15/16. 📦 Commits, push, tests y límite de uso
   // ======================================================================
   function onDev(c) {
+    if (window.Boost) Boost.award(c.dev);   // ⭐ puntos por commits, push y tests
     switch (c.dev) {
       case 'commit': ClawdSprite.trigger('check'); Sound.play('ding'); Speech.say(Phrases.pick('commit'), 2); break;
       case 'push': ClawdSprite.trigger('rocket'); Sound.play('rocket'); Speech.say(Phrases.pick('push'), 2); break;
@@ -529,7 +530,7 @@ const Extras = (() => {
       if (Date.now() - typing.saidAt > 10 * 60000) { typing.saidAt = Date.now(); Speech.say(Phrases.pick('typeAlong'), 1, { cooldown: 3000 }); }
     } else if (away.on && (want === 'idle' || want === 'sit')) out.want = 'sleeping';
     // de noche, gorrito (salvo que toque disfraz por fecha)
-    const wear = { ...(modeWear() || {}), hat: costume() || (isNight() ? 'nightcap' : null) };
+    const wear = { ...(modeWear() || {}), ...(window.Characters ? Characters.wear() : {}), hat: costume() || (window.Characters && Characters.hat()) || (isNight() ? 'nightcap' : null), band: !!(window.Boost && Boost.focusing()) };
     return { ...out, wear, tired: bat.tired };
   }
 

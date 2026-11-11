@@ -73,6 +73,20 @@ const ClawdSprite = (() => {
   const blink = (t, every = 4.3) => (t % every) < 0.13;
   let O = {}; // opciones del fotograma actual (mirada, arrastre, juego, sentado)
 
+  // ---------- personajes (skins.js): cambian colores y añaden detalles, pero usan este mismo esqueleto ----------
+  const BASE_PAL = { body: C.body, shade: C.shade, light: C.light, dark: C.dark, blush: C.blush, eye: C.eye };
+  let SKIN = null;
+  function setSkin(sk) {
+    if ((sk && sk.id) === (SKIN && SKIN.id)) return;
+    SKIN = sk && sk.id !== 'clawd' ? sk : null;
+    Object.assign(C, BASE_PAL, SKIN ? SKIN.palette : {});
+  }
+  // con sombrero, cascos o disfraz de canción no se dibujan orejas, cuernos ni antena
+  function topBlocked(opts, active) {
+    const w = opts.wear || {};
+    return !!((w.hat && !['sleeping', 'celebrate'].includes(active)) || w.ears || w.head || ['angine', 'chicago'].includes(opts.special));
+  }
+
   // Mira hacia el cursor (si está razonablemente cerca); sonríe si lo tienes encima
   function lookAt(P, smile = false) {
     if (!O.look) return;
@@ -397,21 +411,49 @@ const ClawdSprite = (() => {
   // w = { ears: 'headphones'|'gamer', face: 'nerd'|'3d', head: 'beret', neck: 'tie', hat: 'santa'|'witch'|'party'|'flowers'|'nightcap' }
   function drawWear(P, g, w, active) {
     if (!w) return;
-    const ey = g.top + 4 + P.lookY;
+    const ey = (g.ey != null ? g.ey : g.top + 4) + P.lookY;
     const ink = '#2A2522';
     if (w.neck === 'tie') {
       rect(19, g.top + 11, 2, 1, '#2F5FA8');
       rect(19, g.top + 12, 2, 2, '#4C8DE0');
     }
-    if (w.face === 'nerd') {
+    if (w.face === 'nerd' && !w.glasses) {
       for (const e of [14 + P.lookX, 24 + P.lookX]) {
         rect(e - 1, ey - 1, 4, 1, ink); rect(e - 1, ey + 3, 4, 1, ink);
         rect(e - 2, ey - 1, 1, 5, ink); rect(e + 2, ey - 1, 1, 5, ink);
       }
       rect(17 + P.lookX, ey, 5, 1, ink);
-    } else if (w.face === '3d') {
+    } else if (w.face === '3d' && !w.glasses) {
       rect(11, ey - 2, 18, 1, C.white);
       alpha(0.75, () => { rect(12, ey - 1, 6, 4, '#E5484D'); rect(22, ey - 1, 6, 4, '#4C8DE0'); });
+    }
+    if (w.glasses) {                           // 🛍️ gafas de la tienda
+      const lx = P.lookX, gold = '#C9A227';
+      const frame = e => { rect(e - 1, ey - 1, 4, 1, gold); rect(e - 1, ey + 3, 4, 1, gold); rect(e - 2, ey, 1, 3, gold); rect(e + 2, ey, 1, 3, gold); };
+      if (w.glasses === 'round') { frame(14 + lx); frame(24 + lx); rect(17 + lx, ey, 5, 1, gold); }
+      else if (w.glasses === 'sun') {
+        rect(12 + lx, ey, 6, 3, '#1F1A17'); rect(22 + lx, ey, 6, 3, '#1F1A17'); rect(18 + lx, ey, 4, 1, '#1F1A17');
+        px(13 + lx, ey, C.white); px(23 + lx, ey, C.white);
+      } else if (w.glasses === 'heart') {
+        bitmap(HEART, 12 + lx, ey - 1, '#F28FB1'); bitmap(HEART, 22 + lx, ey - 1, '#F28FB1'); rect(17 + lx, ey, 5, 1, '#D9668F');
+      } else if (w.glasses === 'monocle') { frame(24 + lx); line(26 + lx, ey + 3, 27 + lx, ey + 8, gold); }
+    }
+    if (w.neckwear) {                          // 🛍️ cuello de la tienda
+      const t = g.neckTop != null ? g.neckTop : g.top;
+      if (w.neckwear === 'scarf') {
+        rect(g.x0 + 1, t + 10, g.W - 2, 2, '#4C8DE0');
+        for (let x = g.x0 + 2; x < g.x0 + g.W - 1; x += 3) px(x, t + 10, '#9FD3F5');
+        rect(g.x0 + g.W - 6, t + 12, 2, 3, '#4C8DE0'); rect(g.x0 + g.W - 6, t + 14, 2, 1, '#2F5FA8');
+      } else if (w.neckwear === 'bow') {
+        rect(16, t + 10, 2, 3, '#E5484D'); rect(22, t + 10, 2, 3, '#E5484D'); rect(18, t + 11, 4, 1, '#B83238');
+        px(16, t + 10, '#F07075'); px(23, t + 10, '#F07075');
+      } else if (w.neckwear === 'bandana') {
+        rect(13, t + 10, 14, 1, '#E5484D'); rect(14, t + 11, 12, 1, '#E5484D'); rect(16, t + 12, 8, 1, '#E5484D'); rect(18, t + 13, 4, 1, '#E5484D');
+        px(15, t + 10, C.white); px(19, t + 11, C.white); px(23, t + 10, C.white); px(20, t + 12, C.white);
+      } else if (w.neckwear === 'necklace') {
+        for (let x = 13; x <= 26; x += 2) px(x, t + 10 + (x > 15 && x < 24 ? 1 : 0), C.white);
+        rect(19, t + 12, 2, 2, '#F28FB1');
+      }
     }
     const hatFree = !['sleeping', 'celebrate'].includes(active);
     if (w.head === 'beret' && hatFree) {
@@ -427,9 +469,43 @@ const ClawdSprite = (() => {
       rect(g.x0 - 1, g.top + 2, 1, 3, accent); rect(g.x0 + g.W, g.top + 2, 1, 3, accent);
       if (w.ears === 'gamer') line(g.x0 - 1, g.top + 6, 15, g.top + 9, ink);
     }
+    if (w.band) {                              // 🍅 cinta de concentración (pomodoro)
+      rect(g.x0, g.top + 1, g.W, 1, '#E5484D');
+      px(g.x0 + g.W, g.top + 1, '#E5484D'); px(g.x0 + g.W + 1, g.top + 2, '#B83238'); px(g.x0 + g.W, g.top + 3, '#B83238');
+    }
     if (w.hat && hatFree && !w.ears && !w.head) {
       const x = g.x0, t = g.top;
-      if (w.hat === 'santa') {
+      if (w.hat === 'cap') {                   // 🛍️ gorra
+        rect(x + 3, t - 3, 14, 3, '#4C8DE0'); rect(x + 5, t - 4, 10, 1, '#4C8DE0');
+        rect(x + 14, t - 1, 7, 1, '#2F5FA8'); px(x + 10, t - 4, '#9FD3F5');
+      } else if (w.hat === 'cowboy') {         // 🛍️ sombrero vaquero
+        rect(x - 1, t - 2, 22, 1, '#8B5A2B'); rect(x - 1, t - 3, 2, 1, '#8B5A2B'); rect(x + 19, t - 3, 2, 1, '#8B5A2B');
+        rect(x + 4, t - 6, 12, 4, '#A0693A'); rect(x + 4, t - 3, 12, 1, '#5C3A1E'); rect(x + 9, t - 6, 2, 1, '#8B5A2B');
+      } else if (w.hat === 'chef') {           // 🛍️ gorro de chef
+        rect(x + 4, t - 3, 12, 2, '#F4F1EC'); rect(x + 3, t - 7, 14, 4, C.white);
+        rect(x + 4, t - 8, 4, 1, C.white); rect(x + 9, t - 8, 3, 1, C.white); rect(x + 13, t - 8, 3, 1, C.white);
+        rect(x + 4, t - 3, 12, 1, '#D9D2CB');
+      } else if (w.hat === 'lazo') {           // 🛍️ lazo
+        rect(x + 12, t - 3, 3, 3, '#F28FB1'); rect(x + 17, t - 3, 3, 3, '#F28FB1'); rect(x + 15, t - 2, 2, 2, '#D9668F');
+        px(x + 12, t - 3, '#FBC3D6'); px(x + 19, t - 3, '#FBC3D6');
+      } else if (w.hat === 'viking') {         // 🛍️ casco vikingo
+        rect(x + 3, t - 3, 14, 3, C.metal); rect(x + 5, t - 5, 10, 2, C.metal); rect(x + 3, t - 1, 14, 1, C.metalDk); px(x + 7, t - 4, C.metalLt);
+        rect(x + 1, t - 4, 2, 2, '#F4F1EC'); rect(x, t - 6, 2, 2, '#F4F1EC'); px(x, t - 7, '#F4F1EC');
+        rect(x + 17, t - 4, 2, 2, '#F4F1EC'); rect(x + 18, t - 6, 2, 2, '#F4F1EC'); px(x + 19, t - 7, '#F4F1EC');
+      } else if (w.hat === 'beanie') {                // gorro de lana (nivel 2)
+        rect(x + 3, t - 2, 14, 2, '#E5484D'); rect(x + 4, t - 4, 12, 2, '#E5484D');
+        rect(x + 3, t - 1, 14, 1, '#B83238'); rect(x + 5, t - 3, 2, 1, '#F07075');
+        rect(x + 9, t - 6, 2, 2, C.white);
+      } else if (w.hat === 'tophat') {         // chistera (nivel 4)
+        rect(x + 2, t - 2, 16, 1, '#1F1A17');
+        rect(x + 5, t - 9, 10, 7, '#2A2522');
+        rect(x + 5, t - 4, 10, 1, '#D63B3B');
+        rect(x + 6, t - 8, 1, 3, '#4A403B');
+      } else if (w.hat === 'crown') {          // corona de rey (nivel 7)
+        rect(x + 4, t - 3, 12, 2, C.yellow);
+        rect(x + 4, t - 5, 2, 2, C.yellow); rect(x + 9, t - 6, 2, 3, C.yellow); rect(x + 14, t - 5, 2, 2, C.yellow);
+        px(x + 9, t - 3, C.red); px(x + 6, t - 2, C.blue); px(x + 13, t - 2, C.blue); px(x + 10, t - 6, C.white);
+      } else if (w.hat === 'santa') {
         rect(x + 3, t - 2, 14, 2, C.white);
         rect(x + 5, t - 4, 10, 2, '#D63B3B'); rect(x + 8, t - 6, 7, 2, '#D63B3B'); rect(x + 13, t - 7, 4, 1, '#D63B3B');
         rect(x + 17, t - 8, 2, 2, C.white);
@@ -462,6 +538,7 @@ const ClawdSprite = (() => {
   // Antena: la bombilla cambia de color según lo que pasa (amarillo normal, violeta pensando, rojo parpadeando si espera permiso)
   const NO_ANTENNA = ['sleeping', 'celebrate', 'web', 'angine', 'chicago'];
   function drawAntenna(P, g, w, special, active) {
+    if (SKIN) return;
     if (NO_ANTENNA.includes(active) || ['angine', 'chicago'].includes(special)) return;
     if (w && (w.hat || w.ears || w.head)) return;
     const sway = R(Math.sin(g.t * 2.2 + (P.bob || 0)) * 0.6);
@@ -478,7 +555,7 @@ const ClawdSprite = (() => {
 
   function drawSpecialWear(P, g, key, active) {
     if (key === 'funk') {                          // gafas de sol
-      const ey = g.top + 4 + P.lookY;
+      const ey = (g.ey != null ? g.ey : g.top + 4) + P.lookY;
       rect(12 + P.lookX, ey, 6, 3, '#1F1A17'); rect(22 + P.lookX, ey, 6, 3, '#1F1A17');
       rect(18 + P.lookX, ey, 4, 1, '#1F1A17');
       px(13 + P.lookX, ey, C.white); px(23 + P.lookX, ey, C.white);
@@ -486,7 +563,7 @@ const ClawdSprite = (() => {
       for (let x = 13; x <= 26; x += 2) px(x, g.top + 11 + (x > 16 && x < 23 ? 1 : 0), C.yellow);
       rect(19, g.top + 12, 2, 2, C.yellow); px(19, g.top + 12, C.white);
     } else if (key === 'standing') {               // gafas de estrella rosas (estilo Elton)
-      const ey = g.top + 4 + P.lookY;
+      const ey = (g.ey != null ? g.ey : g.top + 4) + P.lookY;
       for (const e of [14 + P.lookX, 24 + P.lookX]) {
         alpha(0.9, () => {
           rect(e - 1, ey - 1, 4, 4, '#F28FB1');
@@ -671,9 +748,36 @@ const ClawdSprite = (() => {
     return { cx: 20, bottom, top: bottom - H, H, W, x0: 20 - W / 2, P };
   }
 
+  // Ojos y boca con todos sus gestos (los usan Clawd y los personajes de skins.js)
+  function drawEyes(P, xs, ey) {
+    xs.forEach((e, idx) => {
+      const style = P.eyes === 'wink' ? (idx === 0 ? 'closed' : 'open') : P.eyes;
+      switch (style) {
+        case 'closed': rect(e - 1, ey + 2, 4, 1, C.eye); break;
+        case 'happy': px(e - 1, ey + 2, C.eye); rect(e, ey + 1, 2, 1, C.eye); px(e + 2, ey + 2, C.eye); break;
+        case 'wide': rect(e, ey - 1, 2, 4, C.eye); px(e, ey - 1, C.shine); break;
+        case 'down': rect(e, ey, 2, 2, C.eye); break;
+        case 'squint': rect(e - 1, ey, 4, 1, C.shade); rect(e, ey + 1, 2, 1, C.eye); break;
+        case 'puppy': rect(e, ey - 1, 2, 4, C.eye); px(e, ey - 1, C.shine); px(e + 1, ey + 1, C.shine); break;
+        default: rect(e, ey, 2, 3, C.eye); px(e, ey, C.shine);
+      }
+    });
+  }
+  function drawMouth(P, cx, my) {
+    switch (P.mouth) {
+      case 'o': rect(cx - 1, my, 2, 2, C.eye); break;
+      case 'smile': px(cx - 2, my, C.eye); rect(cx - 1, my + 1, 2, 1, C.eye); px(cx + 1, my, C.eye); break;
+      case 'grin': rect(cx - 2, my, 4, 1, C.eye); rect(cx - 1, my + 1, 2, 1, C.dark); break;
+      case 'flat': rect(cx - 1, my + 1, 2, 1, C.eye); break;
+      case 'yawn': rect(cx - 2, my - 1, 4, 3, C.eye); rect(cx - 1, my, 2, 1, C.dark); break;
+      default: break;
+    }
+  }
+
   function drawBody(P, g) {
     // patas
-    [12, 16, 22, 26].forEach((x, i) => rect(x, g.bottom, 2, P.tuck ? 1 : 4 - P.legs[i], C.shade));
+    if (SKIN && SKIN.legs) SKIN.legs(g, P, g.t || 0);
+    else [12, 16, 22, 26].forEach((x, i) => rect(x, g.bottom, 2, P.tuck ? 1 : 4 - P.legs[i], C.shade));
     // cuerpo
     rect(g.x0, g.top, g.W, g.H, C.body);
     rect(g.x0 + 1, g.top - 1, g.W - 2, 1, C.body);
@@ -683,7 +787,7 @@ const ClawdSprite = (() => {
     if (P.glow > 0) alpha(P.glow, () => rect(g.x0 + 1, g.top + 1, Math.floor(g.W / 2), 9, '#BFE0FF'));
 
     // ojos
-    const ey = g.top + 4 + P.lookY;
+    const ey = (g.ey != null ? g.ey : g.top + 4) + P.lookY;
     [14 + P.lookX, 24 + P.lookX].forEach((e, idx) => {
       // guiño: ojo izquierdo cerrado, derecho abierto
       const style = P.eyes === 'wink' ? (idx === 0 ? 'closed' : 'open') : P.eyes;
@@ -1997,6 +2101,9 @@ const ClawdSprite = (() => {
       P.bob = 0; P.sy = 0; P.sx = 0; P.tuck = false;
     }
 
+    // manías y easter eggs del personaje
+    if (SKIN && SKIN.pose && !opts.dragging) SKIN.pose(P, active, t, opts);
+
     // desplazamiento lateral suave (por ejemplo, se corre a un lado para usar la laptop)
     const target = P.dx;
     dxState += Math.sign(target - dxState) * Math.min(Math.abs(target - dxState), dt * 30);
@@ -2004,6 +2111,7 @@ const ClawdSprite = (() => {
 
     const g = geom(P);
     g.t = t;
+    if (SKIN && SKIN.geom) SKIN.geom(g, P);   // cabeza y cuerpo propios del personaje
     const gk = { ...g, k: clamp(lt / INTRO), lt };
     const outK = 1 - (t - changeAt) / OUTRO;
     const pa = outK > 0 && prev && prev !== active && A[prev] ? A[prev] : null;
@@ -2017,7 +2125,9 @@ const ClawdSprite = (() => {
     if (act.back) act.back(gk);
     o.save();
     o.translate(P.dx, 0);
-    drawBody(P, g);
+    if (SKIN && SKIN.back) SKIN.back(g, P, active, t);
+    if (SKIN && SKIN.body) SKIN.body(P, g, t, active); else drawBody(P, g);
+    if (SKIN && SKIN.top) SKIN.top(g, P, active, t, topBlocked(opts, active));
     drawWear(P, g, opts.wear, active);
     drawAntenna(P, g, opts.wear, opts.special, active);
     drawSpecialWear(P, g, opts.special, active);
@@ -2026,8 +2136,10 @@ const ClawdSprite = (() => {
     if (act.front) act.front(gk);
     o.save();
     o.translate(P.dx, 0);
-    drawArm(-1, P.armL, P.openL, g);
-    drawArm(1, P.armR, P.openR, g, opts.special === 'chicago' || opts.special === 'billie');
+    const armFn = SKIN && SKIN.arm ? SKIN.arm : drawArm;
+    armFn(-1, P.armL, P.openL, g);
+    armFn(1, P.armR, P.openR, g, opts.special === 'chicago' || opts.special === 'billie');
+    if (SKIN && SKIN.front) SKIN.front(g, P, active, t);
     o.restore();
     if (pa && pa.over) pa.over(gp);
     if (act.over) act.over(gk);
@@ -2064,5 +2176,9 @@ const ClawdSprite = (() => {
     return false;
   }
 
-  return { setup, draw, trigger, isOpaque, ACTIONS: Object.keys(A).filter(a => a !== 'wake') };
+  return {
+    setup, draw, trigger, isOpaque, setSkin, ACTIONS: Object.keys(A).filter(a => a !== 'wake'),
+    // herramientas de dibujo para los personajes de skins.js
+    api: { rect, px, line, circle, alpha, bitmap, C, R, clamp, drawEyes, drawMouth, spawn: p => { if (particles.length < 90) particles.push(p); } },
+  };
 })();

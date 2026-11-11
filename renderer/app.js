@@ -289,6 +289,7 @@ window.clawd.onState(s => {
         Speech.say(Phrases.pick(long ? 'doneLong' : 'done', vars), u ? 3 : 2, u ? { usage: u, dur: 8000 } : {});
         if (window.Sound) Sound.play('done');
         if (window.Extras) Extras.onDone();
+        if (window.Boost) Boost.award('turn');
       }
     }
 
@@ -302,6 +303,7 @@ window.clawd.onState(s => {
       ClawdSprite.trigger('check');
       if (window.Sound) Sound.play('ding');
       if (window.Extras) Extras.onTaskDone(done - pd);
+      if (window.Boost) Boost.award('task', done - pd);
       const u = currentUsageFrom(s.usage);
       Speech.say(Phrases.pick(done === total ? 'allDone' : 'taskDone', vars), done === total ? 3 : 2, u ? { usage: u, dur: 8000 } : { dur: 2600 });
     }
@@ -629,6 +631,8 @@ function setCaption(action) {
     const m = media();
     text = `🎵 ${m.song || 'Música'}${m.by ? ' — ' + m.by : ''}`;
   }
+  // 🍅 tiempo del pomodoro (también por encima de la canción que suena)
+  if (window.Boost && !Speech.speaking() && (!text || text.startsWith('🎵')) && Boost.caption()) { text = Boost.caption(); cls = ''; }
   const key = cls + text;
   if (key === lastCaption) return;
   lastCaption = key;
@@ -652,6 +656,7 @@ function frame(ms) {
   // Extras de Windows: subirse a ventanas, ausencia, teclear contigo…
   const ex = window.Extras ? Extras.frame(now, dt, want, base, !!game) : null;
   if (ex && ex.want) want = ex.want;
+  if (window.Boost && !game) want = Boost.want(want);   // 🍅 pomodoro: sentado y concentrado / estirándose
   const action = pickAction(now, want);
   ClawdSprite.draw(ctx, ms / 1000, action, {
     look, dragging: !!(down && down.moved), sitting, play: ex && ex.play ? ex.play : (game ? game.play : null),
@@ -826,6 +831,9 @@ window.clawd.onCommand(c => {
       const k = c.preview.slice(5);
       forcedSong = k === 'off' ? null : k;
       forcedUntil = Date.now() + 20000;
+    } else if (c.preview.startsWith('c:')) {         // personajes: lo gestiona characters.js
+    } else if (c.preview.startsWith('b:')) {         // pomodoro, niveles, recordatorios: /preview?a=b:pomo
+      if (window.Boost) Boost.preview(c.preview.slice(2));
     } else if (c.preview.startsWith('x:')) {         // probar un extra de Windows: /preview?a=x:summary
       if (window.Extras) Extras.preview(c.preview.slice(2));
     } else if (c.preview.startsWith('play:')) {      // probar un juego: /preview?a=play:chase
