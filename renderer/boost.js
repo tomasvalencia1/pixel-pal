@@ -17,7 +17,10 @@ const Boost = (() => {
   // ======================================================================
   // 💾 Progreso guardado (progress.json en la carpeta de datos de Clawd)
   // ======================================================================
-  const DEFAULTS = { xp: 0, totals: {}, streak: { last: null, count: 0, best: 0 }, todayPomos: { date: null, n: 0 }, ach: [], reminders: [] };
+  const DEFAULTS = {
+    xp: 0, totals: {}, streak: { last: null, count: 0, best: 0 }, todayPomos: { date: null, n: 0 }, ach: [], reminders: [],
+    notes: [], day: { date: null, xp: 0 }, prevDay: null, mood: { v: 70, at: 0 }, agenda: { morning: null, evening: null },
+  };
   let data = JSON.parse(JSON.stringify(DEFAULTS));
   let loaded = false;
   const early = [];            // puntos ganados antes de terminar de cargar
@@ -88,12 +91,37 @@ const Boost = (() => {
     }
   }
 
+  // ---------- 📅 lo de hoy (para la agenda y el resumen de la tarde) ----------
+  function dayStats() {
+    if (!data.day || data.day.date !== today()) {
+      if (data.day && data.day.date) data.prevDay = data.day;
+      data.day = { date: today(), xp: 0 };
+    }
+    return data.day;
+  }
+
+  // ---------- 💛 ánimo: sube cuando le haces caso, trabajas y descansas; baja si lo ignoras mucho rato ----------
+  const MOOD_UP = { task: 2, turn: 1, pomo: 8, break: 6, commit: 3, push: 3, testPass: 1 };
+  const moodV = () => Math.round(Math.max(0, Math.min(100, Number(data.mood.v) || 0)));
+  const moodFace = () => { const v = moodV(); return v >= 80 ? '😄' : v >= 55 ? '🙂' : v >= 30 ? '😐' : '🥺'; };
+  function cheer(n) {
+    if (!loaded || !n) return;
+    data.mood.v = Math.max(0, Math.min(100, (Number(data.mood.v) || 0) + n));
+    if (n > 0) data.mood.at = Date.now();
+    save();
+    renderBox();
+  }
+
   function award(kind, n = 1) {
     if (!XP[kind] || n < 1) return;
     if (!loaded) { early.push([kind, n]); return; }
     const before = levelOf(data.xp);
     data.xp += XP[kind] * n;
     data.totals[kind] = tot(kind) + n;
+    const day = dayStats();
+    day[kind] = (day[kind] || 0) + n;
+    day.xp += XP[kind] * n;
+    if (MOOD_UP[kind]) cheer(MOOD_UP[kind] * n);
     if (kind === 'pomo') {
       if (data.todayPomos.date !== today()) data.todayPomos = { date: today(), n: 0 };
       data.todayPomos.n += n;
@@ -135,7 +163,8 @@ const Boost = (() => {
     const xp = document.createElement('span'); xp.className = 'xp'; xp.textContent = `${data.xp - from}/${to - from} XP`;
     row.append(b, bar, xp);
     const stats = document.createElement('div'); stats.className = 'bstats';
-    stats.textContent = `🔥 ${streakNow()} ${streakNow() === 1 ? 'día' : 'días'} · 🍅 ${pomos} hoy · 🏅 ${data.ach.length}/${ACH.length} logros`;
+    stats.textContent = `${moodFace()} ${moodV()}% · 🔥 ${streakNow()} ${streakNow() === 1 ? 'día' : 'días'} · 🍅 ${pomos} hoy · 🏅 ${data.ach.length}/${ACH.length}`;
+    stats.title = `Ánimo de Clawd: ${moodV()}% (sube si le haces caso, trabajas y descansas)`;
     box.append(row, stats);
   }
 
@@ -150,14 +179,16 @@ const Boost = (() => {
   // ======================================================================
   // 🍅 Pomodoro
   // ======================================================================
-  const FOCUS = 25 * MIN, SHORT = 5 * MIN, LONG = 15 * MIN;
+  // Duraciones (se cambian en el clic derecho → Tiempos, o diciéndoselo: «pomodoros de 50 minutos»)
+  let FOCUS = 25 * MIN, SHORT = 5 * MIN, LONG = 15 * MIN;
   const pomo = { mode: 'off', until: 0, cycle: 0 };
 
   function startFocus(ms = FOCUS) {
     pomo.mode = 'focus';
     pomo.until = Date.now() + ms;
     if (window.Sound) Sound.play('pop');
-    Speech.say(pick(['🍅 ¡A concentrarse! 25 minutos, yo vigilo', '🍅 Modo enfoque activado. Te aviso al terminar', '🍅 25 minutos de concentración. ¡Tú puedes!']), 2, { dur: 3500 });
+    const m = Math.round(ms / MIN);
+    Speech.say(pick([`🍅 ¡A concentrarse! ${m} minutos, yo vigilo`, '🍅 Modo enfoque activado. Te aviso al terminar', `🍅 ${m} minutos de concentración. ¡Tú puedes!`]), 2, { dur: 3500 });
     renderPomo();
   }
   function startBreak(long) {
@@ -178,7 +209,7 @@ const Boost = (() => {
     startBreak(long);
     ClawdSprite.trigger('check');
     if (window.Sound) Sound.play('done');
-    const mins = long ? 15 : 5;
+    const mins = Math.round((long ? LONG : SHORT) / MIN);
     notify('🍅 Pomodoro terminado', `¡Bien hecho! Descansa ${mins} minutos.`);
     Speech.say(`🍅 ¡Pomodoro completado! Descansa ${mins} min ☕`, 3, {
       dur: 15000,
@@ -209,7 +240,7 @@ const Boost = (() => {
   // ======================================================================
   // 🧘 Descansos, agua y vista
   // ======================================================================
-  const CARE_EVERY = 45 * MIN;
+  let CARE_EVERY = 45 * MIN;
   const CARE = [
     { key: 'water', text: ['💧 ¿Un vaso de agua? Llevas un buen rato', '💧 Hora de hidratarse. ¡Yo ya bebí!'], thanks: '💧 ¡Bien hidratado!' },
     { key: 'stretch', text: ['🧘 Llevas mucho sentado: ¿te estiras un momento?', '🧘 Levántate, estira la espalda y vuelve'], thanks: '🧘 ¡Qué bien sienta estirarse!' },
@@ -236,7 +267,10 @@ const Boost = (() => {
           award('break');
           ClawdSprite.trigger('love');
           setTimeout(() => Speech.say(c.thanks, 2, { dur: 2200 }), 250);
-        } else care.snooze = Date.now() + (v === 'later' ? 10 : 15) * MIN;
+        } else {
+          care.snooze = Date.now() + (v === 'later' ? 10 : 15) * MIN;
+          cheer(v === 'later' ? -1 : -4);              // ignorarlo le pone un poco triste
+        }
       },
     });
     if (ok) { care.snooze = now + 30000; ClawdSprite.trigger('hello'); if (window.Sound) Sound.play('hello'); }
@@ -272,7 +306,8 @@ const Boost = (() => {
     list.innerHTML = '';
     for (const r of [...data.reminders].sort((a, b) => a.at - b.at)) {
       const row = document.createElement('div'); row.className = 'rem-item';
-      const when = document.createElement('b'); when.textContent = hhmm(r.at);
+      const when = document.createElement('b'); when.textContent = (r.repeat ? '🔁 ' : '') + hhmm(r.at);
+      if (r.repeat) row.title = repeatText(r.repeat);
       const txt = document.createElement('span'); txt.textContent = r.text;
       const del = document.createElement('button'); del.type = 'button'; del.title = 'Quitar'; del.textContent = '✕';
       del.addEventListener('click', e => { e.stopPropagation(); data.reminders = data.reminders.filter(x => x.id !== r.id); save(); renderReminders(); });
@@ -296,11 +331,121 @@ const Boost = (() => {
     });
     if (!ok) return;                                   // hay otra pregunta abierta: se reintenta luego
     data.reminders = data.reminders.filter(r => r.id !== due.id);
+    if (due.repeat) {                                  // 🔁 los que se repiten se programan para la próxima vez
+      const next = nextAt(due.repeat, now);
+      if (next) data.reminders.push({ id: `r${Date.now()}`, at: next, text: due.text, repeat: due.repeat });
+    }
     save();
     renderReminders();
     ClawdSprite.trigger('hello');
     if (window.Sound) Sound.play('alert');
   }
+  // 🔁 Repetición: { type: 'daily' | 'weekdays' | 'weekly', h, m, dow (0 = domingo) }
+  const DOW = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  function validRepeat(rep) {
+    return !!rep && ['daily', 'weekdays', 'weekly'].includes(rep.type) && rep.h >= 0 && rep.h <= 23 && rep.m >= 0 && rep.m <= 59 && (rep.type !== 'weekly' || (rep.dow >= 0 && rep.dow <= 6));
+  }
+  function nextAt(rep, from = Date.now()) {
+    if (!validRepeat(rep)) return null;
+    for (let i = 0; i <= 8; i++) {
+      const d = new Date(from); d.setDate(d.getDate() + i); d.setHours(rep.h, rep.m, 0, 0);
+      if (d.getTime() <= from) continue;
+      const w = d.getDay();
+      if (rep.type === 'daily' || (rep.type === 'weekdays' && w >= 1 && w <= 5) || (rep.type === 'weekly' && w === rep.dow)) return d.getTime();
+    }
+    return null;
+  }
+  function repeatText(rep) {
+    const t = `${String(rep.h).padStart(2, '0')}:${String(rep.m).padStart(2, '0')}`;
+    return rep.type === 'daily' ? `todos los días a las ${t}` : rep.type === 'weekdays' ? `de lunes a viernes a las ${t}` : `cada ${DOW[rep.dow]} a las ${t}`;
+  }
+
+  // ======================================================================
+  // 📝 Notas rápidas
+  // ======================================================================
+  function addNote(text) {
+    text = String(text || '').trim().slice(0, 120);
+    if (!loaded || !text || data.notes.length >= 30) return false;
+    data.notes.push({ id: `n${Date.now()}`, text, at: Date.now() });
+    save(); renderNotes();
+    return true;
+  }
+  function removeNote(i) { if (i < 0 || i >= data.notes.length) return null; const [n] = data.notes.splice(i, 1); save(); renderNotes(); return n; }
+  function clearNotes() { const n = data.notes.length; data.notes = []; save(); renderNotes(); return n; }
+  function renderNotes() {
+    const list = $('notelist');
+    if (list) {
+      list.innerHTML = '';
+      if (!data.notes.length) { const e = document.createElement('div'); e.className = 'rem-item'; e.textContent = 'Sin notas. Escribe una arriba o dime «apunta que…»'; list.appendChild(e); }
+      data.notes.forEach((n, i) => {
+        const row = document.createElement('div'); row.className = 'rem-item';
+        const num = document.createElement('b'); num.textContent = `${i + 1}.`;
+        const txt = document.createElement('span'); txt.textContent = n.text; txt.title = n.text;
+        const del = document.createElement('button'); del.type = 'button'; del.title = 'Tachar'; del.textContent = '✓';
+        del.addEventListener('click', e => { e.stopPropagation(); removeNote(data.notes.indexOf(n)); if (window.Sound) Sound.play('pop'); });
+        row.append(num, txt, del);
+        list.appendChild(row);
+      });
+    }
+    const btn = $('notesbtn');
+    if (btn) btn.textContent = data.notes.length ? `📝 Notas · ${data.notes.length}` : '📝 Notas';
+  }
+
+  // ======================================================================
+  // 📅 Agenda: saludo de la mañana y resumen de la tarde
+  // ======================================================================
+  function agendaLines() {
+    const now = Date.now(), end = new Date(); end.setHours(23, 59, 59, 999);
+    const lines = [];
+    const todays = data.reminders.filter(r => r.at <= end.getTime()).sort((a, b) => a.at - b.at);
+    if (todays.length) for (const r of todays.slice(0, 5)) lines.push(`⏰ ${hhmm(r.at)}${r.at < now ? ' (pendiente)' : ''} · ${r.text}`);
+    else lines.push('⏰ Sin recordatorios para hoy');
+    if (data.notes.length) lines.push(`📝 ${data.notes.length} nota${data.notes.length === 1 ? '' : 's'}: ${data.notes.slice(0, 2).map(n => n.text).join(' · ')}${data.notes.length > 2 ? '…' : ''}`);
+    const d = dayStats();
+    if (d.xp) lines.push(`✅ Hoy: ${d.task || 0} tareas · 🍅 ${d.pomo || 0} pomodoros · ⭐ ${d.xp} XP`);
+    const p = data.prevDay;
+    if (p && p.date === yesterday() && p.xp) lines.push(`📊 Ayer: ${p.task || 0} tareas · 🍅 ${p.pomo || 0} pomodoros · ⭐ ${p.xp} XP`);
+    if (streakNow() >= 2) lines.push(`🔥 Racha de ${streakNow()} días`);
+    return lines;
+  }
+  function showAgenda(title) {
+    return Speech.say(title || `📅 Tu día (${new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })})`, 3, {
+      dur: 20000, lines: agendaLines(), buttons: [{ label: 'Vale 👍', value: 'x' }],
+    });
+  }
+  function eveningLines() {
+    const d = dayStats();
+    return [
+      `✅ ${d.task || 0} tareas de Claude terminadas`,
+      `🍅 ${d.pomo || 0} pomodoros · 🧘 ${d.break || 0} descansos`,
+      `⭐ ${d.xp} XP ganados · ${moodFace()} ánimo ${moodV()}%`,
+      ...(data.notes.length ? [`📝 Te quedan ${data.notes.length} nota${data.notes.length === 1 ? '' : 's'} pendiente${data.notes.length === 1 ? '' : 's'}`] : []),
+    ];
+  }
+  function agendaTick(now) {
+    if (!care.activeSince || care.full || Speech.asking() || Speech.speaking()) return;   // solo si estás en el PC y sin interrumpir
+    const h = new Date(now).getHours();
+    if (h >= 5 && h < 12 && data.agenda.morning !== today()) {
+      data.agenda.morning = today(); save();
+      ClawdSprite.trigger('hello');
+      if (window.Sound) Sound.play('hello');
+      showAgenda('☀️ ¡Buenos días! Esto es lo que tienes hoy:');
+    } else if (h >= 19 && data.agenda.evening !== today() && dayStats().xp > 0) {
+      data.agenda.evening = today(); save();
+      ClawdSprite.trigger('love');
+      Speech.say('🌙 ¡Buen trabajo hoy! Tu resumen:', 3, { dur: 20000, lines: eveningLines(), buttons: [{ label: 'Gracias 💕', value: 'x' }] });
+    }
+  }
+  // El ánimo baja poco a poco si pasas mucho rato sin hacerle caso, y se nota
+  function moodTick(now) {
+    if (!care.activeSince) return;                    // si no estás, no se pone triste
+    if (now - (data.mood.at || 0) > 20 * MIN) { data.mood.v = Math.max(0, moodV() - 2); data.mood.at = now - 15 * MIN; save(); renderBox(); }
+    if (Speech.speaking() || Speech.asking() || Play.cur || pomo.mode === 'focus') return;
+    const v = moodV();
+    if (v < 30 && Math.random() < 0.25) { ClawdSprite.trigger('sad'); Speech.say(pick(['🥺 Me siento un poco solito… ¿me haces caso?', '🥺 Hace rato que no hablamos…', '🥺 ¿Un descanso juntos?']), 1); }
+    else if (v >= 85 && Math.random() < 0.15) { ClawdSprite.trigger('love'); Speech.say(pick(['💕 ¡Qué bien lo estamos pasando!', '😄 Hoy estoy feliz contigo', '💛 Me encanta trabajar contigo']), 0); }
+  }
+
   function openForm() {
     $('remform').classList.remove('hidden');
     if (!pinned) { pinned = true; pinnedByMe = true; updatePanel(); }
@@ -341,6 +486,37 @@ const Boost = (() => {
       e.stopPropagation();
       addReminder(Number(b.dataset.min));
     }));
+    // 📝 notas y 📅 hoy (en "Más")
+    const nb = $('notesbtn'), box = $('notesbox'), nt = $('notetext');
+    if (nb && box && nt) {
+      nb.addEventListener('click', e => {
+        e.stopPropagation();
+        const opening = box.classList.contains('hidden');
+        box.classList.toggle('hidden', !opening);
+        if (opening && !pinned) { pinned = true; pinnedByMe = true; updatePanel(); }
+        if (!opening && pinnedByMe) { pinnedByMe = false; pinned = false; updatePanel(); }
+        renderNotes();
+        if (opening) setTimeout(() => box.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 30);
+      });
+      nt.addEventListener('mousedown', () => { setInput(true); setTimeout(() => nt.focus(), 30); });
+      nt.addEventListener('blur', () => setInput(false));
+      nt.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && nt.value.trim()) { if (addNote(nt.value)) { nt.value = ''; ClawdSprite.trigger('check'); if (window.Sound) Sound.play('pop'); } }
+        else if (e.key === 'Escape') nt.blur();
+      });
+    }
+    const ab = $('agendabtn');
+    if (ab) ab.addEventListener('click', e => { e.stopPropagation(); showAgenda(); });
+  }
+  function setDurations(p, persist) {
+    const ok = (v, a, b) => Number.isFinite(Number(v)) && Number(v) >= a && Number(v) <= b;
+    const patch = {};
+    if (ok(p.pomoFocus, 5, 120)) { FOCUS = Math.round(p.pomoFocus) * MIN; patch.pomoFocus = Math.round(p.pomoFocus); }
+    if (ok(p.pomoBreak, 1, 60)) { SHORT = Math.round(p.pomoBreak) * MIN; LONG = SHORT * 3; patch.pomoBreak = Math.round(p.pomoBreak); }
+    if (ok(p.careEvery, 15, 240)) { CARE_EVERY = Math.round(p.careEvery) * MIN; patch.careEvery = Math.round(p.careEvery); }
+    if ('breaks' in p) { care.on = p.breaks !== false; patch.breaks = care.on; }
+    if (persist && Object.keys(patch).length) window.clawd.savePref(patch);
+    return patch;
   }
 
   // ======================================================================
@@ -350,7 +526,7 @@ const Boost = (() => {
     if (typeof s.idle === 'number') onIdle(s.idle);
     if (s.fg) care.full = !!(s.fg.full && !s.fg.shell);
   });
-  const applyPrefs = p => { if (p && 'breaks' in p) care.on = p.breaks !== false; };
+  const applyPrefs = p => { if (p && typeof p === 'object') setDurations(p, false); };
   window.clawd.onPrefs(applyPrefs);
   window.clawd.onCommand(c => { if (c && c.prefs) applyPrefs(c.prefs); });
 
@@ -361,10 +537,12 @@ const Boost = (() => {
     if (loaded) { remindTick(now); careTick(now); }
     if (announces.length && !Speech.speaking()) announces.shift()();
     // si el panel se cerró mientras escribías, se suelta el teclado
-    if (inputOn && panel.classList.contains('hidden')) { $('remtext').blur(); setInput(false); }
+    if (inputOn && panel.classList.contains('hidden')) { $('remtext').blur(); if ($('notetext')) $('notetext').blur(); setInput(false); }
     if (!$('remform').classList.contains('hidden') && panel.classList.contains('hidden') && !pinned) closeForm();
+    if ($('notesbox') && !$('notesbox').classList.contains('hidden') && panel.classList.contains('hidden') && !pinned) { $('notesbox').classList.add('hidden'); pinnedByMe = false; }
   }, 1000);
-  setInterval(renderBox, 60000);       // la racha cambia a medianoche
+  setInterval(() => { renderBox(); if (loaded) { agendaTick(Date.now()); dayStats(); } }, 60000);   // la racha cambia a medianoche
+  setInterval(() => { if (loaded) moodTick(Date.now()); }, 5 * 60000);
 
   (async () => {
     try {
@@ -375,14 +553,21 @@ const Boost = (() => {
         data.streak = { ...DEFAULTS.streak, ...(d.streak || {}) };
         data.todayPomos = { ...DEFAULTS.todayPomos, ...(d.todayPomos || {}) };
         data.ach = Array.isArray(d.ach) ? d.ach : [];
-        data.reminders = Array.isArray(d.reminders) ? d.reminders.filter(r => r && typeof r.at === 'number' && typeof r.text === 'string') : [];
+        data.reminders = Array.isArray(d.reminders) ? d.reminders.filter(r => r && typeof r.at === 'number' && typeof r.text === 'string' && (!r.repeat || validRepeat(r.repeat))) : [];
         data.xp = Number(d.xp) || 0;
+        data.notes = Array.isArray(d.notes) ? d.notes.filter(n => n && typeof n.text === 'string').slice(0, 30) : [];
+        data.day = d.day && typeof d.day === 'object' ? { xp: 0, ...d.day } : { ...DEFAULTS.day };
+        data.prevDay = d.prevDay && typeof d.prevDay === 'object' ? d.prevDay : null;
+        data.mood = { ...DEFAULTS.mood, ...(d.mood || {}) };
+        data.agenda = { ...DEFAULTS.agenda, ...(d.agenda || {}) };
       }
     } catch { /* primera vez */ }
     loaded = true;
+    if (!data.mood.at) data.mood.at = Date.now();
     for (const [k, n] of early.splice(0)) award(k, n);
     renderBox();
     renderReminders();
+    renderNotes();
   })();
   wire();
   renderPomo();
@@ -410,12 +595,16 @@ const Boost = (() => {
     else if (cmd === 'rem') { data.reminders.push({ id: `r${Date.now()}`, at: Date.now() + 3000, text: 'Mirar si Claude terminó 👀' }); save(); renderReminders(); }
     else if (cmd === 'ach') showAchievements();
     else if (cmd === 'hat') window.clawd.openShop();
+    else if (cmd === 'morning') { data.agenda.morning = null; care.activeSince = care.activeSince || Date.now(); ClawdSprite.trigger('hello'); showAgenda('☀️ ¡Buenos días! Esto es lo que tienes hoy:'); }
+    else if (cmd === 'evening') Speech.say('🌙 ¡Buen trabajo hoy! Tu resumen:', 3, { dur: 20000, lines: eveningLines(), buttons: [{ label: 'Gracias 💕', value: 'x' }] });
   }
 
   // ---------- para hablar con Clawd (talk.js) ----------
-  function remindAt(at, text) {
+  function remindAt(at, text, repeat) {
+    if (repeat && validRepeat(repeat)) at = nextAt(repeat);
+    else repeat = undefined;
     if (!loaded || !(at > Date.now()) || data.reminders.length >= 20) return false;
-    data.reminders.push({ id: `r${Date.now()}`, at, text: String(text || '').trim().slice(0, 80) || 'Lo que me pediste' });
+    data.reminders.push({ id: `r${Date.now()}`, at, text: String(text || '').trim().slice(0, 80) || 'Lo que me pediste', ...(repeat ? { repeat } : {}) });
     save();
     renderReminders();
     return true;
@@ -427,12 +616,15 @@ const Boost = (() => {
       level: lvl, xp: data.xp - xpAt(lvl), next: xpAt(lvl + 1) - xpAt(lvl), streak: streakNow(), best: data.streak.best || 0,
       ach: data.ach.length, achTotal: ACH.length, tasks: tot('task'), pomosToday: data.todayPomos.date === today() ? data.todayPomos.n : 0,
       pomo: pomo.mode, pomoLeft: Math.max(0, pomo.until - Date.now()),
-      reminders: [...data.reminders].sort((a, b) => a.at - b.at).map(r => ({ at: r.at, text: r.text })),
+      reminders: [...data.reminders].sort((a, b) => a.at - b.at).map(r => ({ at: r.at, text: r.text, repeat: r.repeat ? repeatText(r.repeat) : null })),
+      notes: data.notes.map(n => n.text), mood: moodV(), moodFace: moodFace(),
+      durations: { focus: FOCUS / MIN, break: SHORT / MIN, care: CARE_EVERY / MIN, careOn: care.on },
     };
   }
 
   return {
     award, want, caption, preview, remindAt, clearReminders, info, showAchievements,
+    addNote, removeNote, clearNotes, agendaLines, showAgenda, eveningLines, cheer, nextAt, repeatText, setDurations: p => setDurations(p, true),
     pomo: action => { if (action === 'start') { if (pomo.mode !== 'focus') startFocus(); } else if (pomo.mode !== 'off') stopPomo(false); },
     focusing: () => pomo.mode === 'focus',
   };

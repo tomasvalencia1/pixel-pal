@@ -53,15 +53,31 @@ const Talk = (() => {
         if (!mer && h < 12 && new Date(d.getTime() + 12 * 3600000).getTime() > now) d.setHours(h + 12);   // "a las 5" a las 3 de la tarde = 17:00
         else d.setDate(d.getDate() + 1);
       }
-      return { at: d.getTime(), start: m.index, end: m.index + m[0].length };
+      return { at: d.getTime(), start: m.index, end: m.index + m[0].length, clock: { h, m: mi, explicit: !!mer || h > 12 } };
     }
     return null;
   }
 
+  // 🔁 ¿Se repite? ("todos los días", "de lunes a viernes", "cada martes")
+  const DOWS = { domingo: 0, lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6 };
+  function parseRepeat(f) {
+    let m = /\b(todos los dias|cada dia|diariamente|a diario|todas las mananas|todas las noches|todas las tardes)\b/.exec(f);
+    if (m) return { type: 'daily', start: m.index, end: m.index + m[0].length };
+    m = /\b(entre semana|de lunes a viernes|los dias laborables|cada dia laborable|dias de trabajo)\b/.exec(f);
+    if (m) return { type: 'weekdays', start: m.index, end: m.index + m[0].length };
+    m = /\b(?:cada|todos los|los)\s+(domingo|lunes|martes|miercoles|jueves|viernes|sabado)s?\b/.exec(f);
+    if (m) return { type: 'weekly', dow: DOWS[m[1]], start: m.index, end: m.index + m[0].length };
+    return null;
+  }
+
   // Qué hay que recordar: la frase sin "recuérdame", sin el "cuándo" y sin conectores sueltos
-  function reminderText(orig, f, when) {
+  function reminderText(orig, f, ...spans) {
     let o = orig, ff = f;
-    if (when) { o = o.slice(0, when.start) + ' ' + o.slice(when.end); ff = ff.slice(0, when.start) + ' ' + ff.slice(when.end); }
+    // se quitan de atrás hacia delante para que las posiciones sigan valiendo
+    for (const sp of spans.filter(Boolean).sort((a, b) => b.start - a.start)) {
+      o = o.slice(0, sp.start) + ' '.repeat(sp.end - sp.start) + o.slice(sp.end);
+      ff = ff.slice(0, sp.start) + ' '.repeat(sp.end - sp.start) + ff.slice(sp.end);
+    }
     const trig = /\b(?:oye\s+|clawd\s*,?\s*)?(?:por favor\s+)?(?:recuerdame|recordame|recuerda(?:me)?|acuerdame|avisame|pon(?:me)?\s+un\s+recordatorio|crea\s+un\s+recordatorio|recordatorio|que me (?:recuerdes|avises))\b(?:\s+(?:para|de|que|a|sobre))*/;
     const t = trig.exec(ff);
     if (t) { o = o.slice(0, t.index) + ' ' + o.slice(t.index + t[0].length); ff = ff.slice(0, t.index) + ' ' + ff.slice(t.index + t[0].length); }
@@ -99,31 +115,82 @@ const Talk = (() => {
     const f = fold(orig).replace(/[¿?¡!]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!f) return null;
 
+    // misma longitud que el original: sirve para recortar el texto de la nota o del recordatorio
+    const ff = fold(orig).replace(/[¿?¡!]/g, ' ');
+
     // ¿Esperaba que dijeras cuándo?
     if (pending) {
-      const w = parseWhen(f) || (/^\d+$/.test(f) ? { at: Date.now() + Number(f) * MIN } : null);
-      if (w) { const p = pending; pending = null; return makeReminder(p.text, w.at); }
-      if (/\b(no|nada|olvidalo|cancela|dejalo)\b/.test(f)) { pending = null; return { text: 'Vale, lo olvido 👍' }; }
+      const p = pending;
       pending = null;
+      const w = parseWhen(f) || (!p.repeat && /^\d+$/.test(f) ? { at: Date.now() + Number(f) * MIN } : null);
+      if (w && p.repeat) {
+        if (!w.clock) { pending = p; return { text: 'Para que se repita necesito una hora exacta, por ejemplo «a las 9» 🕘' }; }
+        return makeReminder(p.text, 0, { ...p.repeat, h: w.clock.h, m: w.clock.m });
+      }
+      if (w) return makeReminder(p.text, w.at);
+      if (/\b(no|nada|olvidalo|cancela|dejalo)\b/.test(f)) return { text: 'Vale, lo olvido 👍' };
     }
 
     if (/\b(ayuda|que (puedes|sabes) hacer|que haces|comandos|instrucciones)\b/.test(f)) return { text: helpText() };
+
+    // 📅 Agenda
+    if (/\b(que tengo (para )?hoy|mi agenda|agenda|plan de hoy|planes de hoy|mi dia|que hay hoy)\b/.test(f)) {
+      return { text: `📅 Tu día (${new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })}):`, lines: Boost.agendaLines() };
+    }
+    if (/\b(que hice hoy|como me fue hoy|resumen del dia|resumen de hoy|como fue el dia)\b/.test(f)) return { text: '🌙 Tu día hasta ahora:', lines: Boost.eveningLines() };
+
+    // 📝 Notas
+    if (/\b(mis notas|que notas|lee(me)? (mis |las )?notas|ver (las |mis )?notas|tengo notas)\b/.test(f)) {
+      const ns = Boost.info().notes;
+      return ns.length ? { text: `📝 Tienes ${ns.length} nota${ns.length === 1 ? '' : 's'}:`, lines: ns.map((t, i) => `${i + 1}. ${t}`) } : { text: 'No tienes notas. Dime «apunta que…» y la guardo 📝' };
+    }
+    let nm = /\b(?:borra|elimina|quita|tacha)\b.*\bnota\s+(?:numero\s+)?(\d+)\b/.exec(f);
+    if (nm) { const n = Boost.removeNote(Number(nm[1]) - 1); return n ? { text: `✓ Tachada: «${n.text}»` } : { text: `No tengo la nota ${nm[1]} 🤔` }; }
+    if (/\b(borra|elimina|quita|limpia)\b.*\bnotas\b/.test(f)) { const n = Boost.clearNotes(); return { text: n ? `🧹 Borré ${n} nota${n === 1 ? '' : 's'}.` : 'No tenías notas 🙂' }; }
+    // "apunta que…", "anota…", "nota: …" (solo al principio de la frase)
+    nm = /(?:oye\s+)?(?:apunta(?:me)?|anota(?:me)?|toma nota(?: de)?|guarda(?: una)? nota(?: de)?|nota\s*:?|apuntate)\b(?:\s+(?:que|de|esto|lo siguiente))?[\s:,]*/.exec(ff);
+    if (nm && nm.index === ff.search(/\S/)) {
+      const t = orig.slice(nm.index + nm[0].length).replace(/^[\s,.:;¿¡-]+|[\s.?!¿¡]+$/g, '');
+      if (!t) return { text: '¿Qué apunto? Dime por ejemplo «apunta que hay que comprar leche» 📝' };
+      if (!Boost.addNote(t.charAt(0).toUpperCase() + t.slice(1))) return { text: 'Ya tengo 30 notas guardadas 😅 Tacha alguna primero.' };
+      ClawdSprite.trigger('check');
+      return { text: `📝 ¡Apuntado! Ya tienes ${Boost.info().notes.length} nota${Boost.info().notes.length === 1 ? '' : 's'}.` };
+    }
+
+    // ⏱ Tiempos del pomodoro y de los avisos
+    let dm = /\b(?:pomodoros?|enfoque|concentracion)\b.*?\bde\s+(\d+)\s*(?:min|minutos)\b/.exec(f);
+    if (dm) { const p = Boost.setDurations({ pomoFocus: Number(dm[1]) }); return p.pomoFocus ? { text: `⏱ Listo: pomodoros de ${p.pomoFocus} minutos.` } : { text: 'El pomodoro puede durar entre 5 y 120 minutos.' }; }
+    dm = /\bdescansos?\b(?!.*\bcada\b).*?\bde\s+(\d+)\s*(?:min|minutos)\b/.exec(f);
+    if (dm) { const p = Boost.setDurations({ pomoBreak: Number(dm[1]) }); return p.pomoBreak ? { text: `⏱ Listo: descansos de ${p.pomoBreak} minutos (y el largo de ${p.pomoBreak * 3}).` } : { text: 'El descanso puede durar entre 1 y 60 minutos.' }; }
+    dm = /\b(?:avisos?|recordatorios?)\s+de\s+(?:descanso|agua|estirarme|beber agua)\b.*?\bcada\s+(\d+|una|media)\s*(min|minutos|hora|horas)\b/.exec(f);
+    if (dm) {
+      const n = dm[1] === 'una' ? 1 : dm[1] === 'media' ? 0.5 : Number(dm[1]);
+      const p = Boost.setDurations({ careEvery: /^h/.test(dm[2]) ? n * 60 : n, breaks: true });
+      return p.careEvery ? { text: `⏱ Te avisaré para descansar cada ${p.careEvery} minutos.` } : { text: 'Puedo avisarte cada 15 minutos como mínimo y cada 4 horas como máximo.' };
+    }
+    if (/\b(desactiva|quita|apaga|para|no quiero)\b.*\b(avisos|recordatorios)\s+de\s+(descanso|agua)\b/.test(f)) { Boost.setDurations({ breaks: false }); return { text: '🔕 Vale, no te aviso para descansar (puedes volver a activarlo cuando quieras).' }; }
+    if (/\b(activa|pon|enciende|quiero)\b.*\b(avisos|recordatorios)\s+de\s+(descanso|agua)\b/.test(f)) { Boost.setDurations({ breaks: true }); return { text: `🔔 ¡Hecho! Te aviso cada ${Boost.info().durations.care} minutos.` }; }
 
     // Recordatorios
     if (/\b(que|cuales|mis|tengo)\b.*\brecordatorios?\b|\brecordatorios pendientes\b/.test(f) && !/\b(recuerdame|avisame)\b/.test(f)) {
       if (/\b(borra|quita|cancela|elimina|limpia)\b/.test(f)) { const n = Boost.clearReminders(); return { text: n ? `Listo, borré ${n} recordatorio${n === 1 ? '' : 's'} 🧹` : 'No tenías ningún recordatorio 🙂' }; }
       const rs = Boost.info().reminders;
-      return rs.length ? { text: `Tienes ${rs.length}:`, lines: rs.map(r => `⏰ ${hhmm(r.at)} ${dayWord(r.at) === 'hoy' ? '' : '(mañana) '}· ${r.text}`) } : { text: 'No tienes recordatorios pendientes 🙂' };
+      return rs.length ? { text: `Tienes ${rs.length}:`, lines: rs.map(r => r.repeat ? `🔁 ${r.repeat} · ${r.text}` : `⏰ ${hhmm(r.at)} ${dayWord(r.at) === 'hoy' ? '' : '(mañana) '}· ${r.text}`) } : { text: 'No tienes recordatorios pendientes 🙂' };
     }
     if (/\b(borra|quita|cancela|elimina)\b.*\brecordatorios?\b/.test(f)) { const n = Boost.clearReminders(); return { text: n ? `Listo, borré ${n} recordatorio${n === 1 ? '' : 's'} 🧹` : 'No tenías ningún recordatorio 🙂' }; }
     if (/\b(recuerdame|recordame|recuerda|acuerdame|avisame|recordatorio|que me (recuerdes|avises))\b/.test(f)) {
-      const w = parseWhen(f);
-      const text = reminderText(orig, fold(orig), w);
-      if (!w) {
-        pending = { text: text || 'Lo que me pediste' };
-        return { text: `¿Cuándo te recuerdo${text ? ` «${text}»` : ''}?`, buttons: [['En 10 min', 'en 10 minutos'], ['En 30 min', 'en 30 minutos'], ['En 1 hora', 'en 1 hora']] };
+      const w = parseWhen(ff), rep = parseRepeat(ff);
+      const text = reminderText(orig, ff, w, rep) || 'Lo que me pediste';
+      if (rep) {
+        const r = { type: rep.type, ...(rep.type === 'weekly' ? { dow: rep.dow } : {}) };
+        if (!w || !w.clock) { pending = { text, repeat: r }; return { text: `🔁 ¿A qué hora te recuerdo «${text}»?`, buttons: [['A las 9', 'a las 9 de la mañana'], ['A las 14', 'a las 14'], ['A las 20', 'a las 20']] }; }
+        return makeReminder(text, 0, { ...r, h: w.clock.h, m: w.clock.m });
       }
-      return makeReminder(text || 'Lo que me pediste', w.at);
+      if (!w) {
+        pending = { text };
+        return { text: `¿Cuándo te recuerdo «${text}»?`, buttons: [['En 10 min', 'en 10 minutos'], ['En 30 min', 'en 30 minutos'], ['En 1 hora', 'en 1 hora']] };
+      }
+      return makeReminder(text, w.at);
     }
 
     // Pomodoro
@@ -134,7 +201,7 @@ const Talk = (() => {
       }
       const i = Boost.info();
       if (i.pomo === 'focus') return { text: `Ya estamos concentrados: quedan ${Math.ceil(i.pomoLeft / MIN)} min 🍅` };
-      Boost.pomo('start'); return { text: '🍅 ¡Vamos! 25 minutos de concentración. Yo vigilo.' };
+      Boost.pomo('start'); return { text: `🍅 ¡Vamos! ${Boost.info().durations.focus} minutos de concentración. Yo vigilo.` };
     }
 
     // Personaje
@@ -193,7 +260,14 @@ const Talk = (() => {
     // Charla sencilla
     if (/\b(chiste|algo gracioso|hazme reir)\b/.test(f)) return { text: pick(JOKES) };
     if (/\b(como te llamas|quien eres|tu nombre)\b/.test(f)) return { text: `Soy ${who().name} ${who().emoji}. ${who().desc}` };
-    if (/\b(como estas|que tal estas|como te va)\b/.test(f)) return { text: pick(['¡Genial! Aquí, vigilando tus sesiones 😎', 'Muy bien, con ganas de trabajar contigo 💪', 'Feliz de que me hables 😊']) };
+    if (/\b(como estas|que tal estas|como te va|como te sientes|estas bien|tu animo)\b/.test(f)) {
+      const v = Boost.info().mood;
+      const t = v >= 80 ? pick(['¡Feliz de la vida! 😄 Hoy estamos hechos un equipazo', '¡Genial! Me encanta trabajar contigo 💕'])
+        : v >= 55 ? pick(['Bien, aquí vigilando tus sesiones 🙂', 'Muy bien, con ganas de trabajar contigo 💪'])
+          : v >= 30 ? pick(['Regular… un poco aburrido 😐 ¿Hacemos un pomodoro?', 'Ahí voy. Un descanso juntos me vendría bien 😐'])
+            : pick(['Un poco tristón 🥺 Hace rato que no me haces caso…', '🥺 Algo solito. ¿Me cuentas algo?']);
+      return { text: `${t} (ánimo ${v}%)` };
+    }
     if (/\b(te quiero|te amo|eres (lindo|bonito|genial|el mejor|adorable))\b/.test(f)) { ClawdSprite.trigger('love'); return { text: pick(['¡Ay! Yo también te quiero 💕', '¡Me sonrojo! 😊💕']) }; }
     if (/\b(gracias|muchas gracias|thank)\b/.test(f)) return { text: pick(['¡De nada! 😊', '¡Para eso estoy! 🦀', 'Un placer 💕']) };
     if (/^(hola|holi|hey|buenas|buenos dias|buenas tardes|buenas noches|que tal|ey)\b/.test(f)) return { text: pick(['¡Hola! ¿En qué te ayudo? 😊', '¡Hey! Aquí estoy 👋', '¡Buenas! ¿Qué necesitas?']) };
@@ -201,7 +275,12 @@ const Talk = (() => {
     return null;
   }
 
-  function makeReminder(text, at) {
+  function makeReminder(text, at, repeat) {
+    if (repeat) {
+      if (!Boost.remindAt(0, text, repeat)) return { text: 'No pude guardarlo (¿tienes ya 20 recordatorios?) 😅' };
+      ClawdSprite.trigger('check');
+      return { text: `🔁 ¡Apuntado! Te recuerdo «${text}» ${Boost.repeatText(repeat)}.` };
+    }
     if (!Boost.remindAt(at, text)) return { text: 'No pude guardarlo (¿tienes ya 20 recordatorios?) 😅' };
     ClawdSprite.trigger('check');
     const mins = Math.round((at - Date.now()) / MIN);
@@ -225,7 +304,7 @@ const Talk = (() => {
     });
   }
   function helpText() {
-    return 'Prueba a decirme: «recuérdame llamar a mamá en 10 minutos», «avísame a las 5 de la tarde», «empieza un pomodoro», «¿cómo va Claude?», «ponte la gorra», «conviértete en gato», «baila», «cuéntame un chiste».' +
+    return 'Prueba a decirme: «recuérdame llamar a mamá en 10 minutos», «todos los días a las 9 recuérdame la pastilla», «apunta que hay que comprar leche», «¿qué tengo hoy?», «empieza un pomodoro», «pomodoros de 50 minutos», «¿cómo va Claude?», «ponte la gorra», «conviértete en gato», «cuéntame un chiste».' +
       (brain.hasKey ? ' Y de lo demás también podemos charlar 🧠' : ' Con una clave de Anthropic (botón 🧠) también podemos charlar de cualquier cosa.');
   }
 
@@ -238,7 +317,9 @@ const Talk = (() => {
       `Sesiones de Claude Code: ${claudeStatus()} ${claudeLines().join(' ')}`,
       `Música: ${m.playing && (m.song || m.title) ? `${m.song || m.title}${m.by ? ' de ' + m.by : ''}` : 'nada'}`,
       `Nivel ${i.level}, racha ${i.streak} días, ${i.ach}/${i.achTotal} logros, pomodoro: ${i.pomo === 'off' ? 'parado' : i.pomo === 'focus' ? `concentrado (${Math.ceil(i.pomoLeft / MIN)} min)` : 'descanso'}.`,
-      `Recordatorios: ${i.reminders.length ? i.reminders.map(r => `${hhmm(r.at)} ${r.text}`).join('; ') : 'ninguno'}`,
+      `Recordatorios: ${i.reminders.length ? i.reminders.map(r => `${r.repeat || hhmm(r.at)} ${r.text}`).join('; ') : 'ninguno'}`,
+      `Notas: ${i.notes.length ? i.notes.map((t, n) => `${n + 1}) ${t}`).join('; ') : 'ninguna'}`,
+      `Ánimo de Clawd: ${i.mood}% · Pomodoro de ${i.durations.focus} min, descanso de ${i.durations.break} min, avisos de descanso ${i.durations.careOn ? `cada ${i.durations.care} min` : 'apagados'}.`,
       `Sombreros desbloqueados por nivel: ${CATALOG.hats.filter(h => h.lvl && i.level >= h.lvl).map(h => h.id).join(', ') || 'ninguno exclusivo aún'}`,
     ];
     return lines.join('\n');
@@ -274,6 +355,7 @@ const Talk = (() => {
     text = String(text || '').trim().slice(0, 300);
     if (!text || busy) return;
     add('me', text);
+    Boost.cheer(1);                      // 💛 le gusta que le hables
     const r = local(text);
     if (r) {
       add('bot', r.text, r);
@@ -307,6 +389,7 @@ const Talk = (() => {
     if (a.type === 'reminder') Boost.remindAt(Date.now() + a.minutes * MIN, a.text);
     else if (a.type === 'pomodoro') Boost.pomo(a.action);
     else if (a.type === 'outfit' && a.patch) window.clawd.setOutfit(a.patch);
+    else if (a.type === 'note' && a.text) Boost.addNote(a.text);
   }
 
   // ---------- micrófono ----------

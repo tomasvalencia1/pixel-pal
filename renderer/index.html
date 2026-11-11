@@ -27,6 +27,8 @@
     </div>
     <div id="more" class="more hidden">
       <div class="more-row">
+        <button id="agendabtn" class="chip" type="button" title="Tu día: recordatorios, notas y lo que llevas hecho">📅 Hoy</button>
+        <button id="notesbtn" class="chip" type="button" title="Notas rápidas">📝 Notas</button>
         <button id="sessbtn" class="chip" type="button" title="Ventana de sesiones (también al soltar un archivo sobre Clawd)">🗂 Sesiones</button>
         <button id="brainbtn" class="chip" type="button" title="Charlar de todo con Claude Haiku (opcional, con tu clave)">🧠 Haiku</button>
         <button id="settingsbtn" class="chip" type="button" title="Conexión con Claude Code, arranque con Windows">🔌 Ajustes</button>
@@ -43,6 +45,10 @@
         <button class="chip" type="button" data-min="60">1 hora</button>
       </div>
       <div id="remlist"></div>
+    </div>
+    <div id="notesbox" class="remform hidden">
+      <input id="notetext" type="text" maxlength="120" placeholder="Escribe una nota y pulsa Enter" autocomplete="off">
+      <div id="notelist"></div>
     </div>
     <div id="nowplaying" class="hidden"></div>
     <div class="p-section"><span>Sesiones de Claude</span><span id="pCount"></span></div>

@@ -784,6 +784,10 @@ function setupIpc() {
     if ('dance' in p) patch.dance = !!p.dance;
     if ('sound' in p) patch.sound = !!p.sound;
     if ('breaks' in p) patch.breaks = !!p.breaks;
+    const num = (v, a, b) => Number.isFinite(Number(v)) && Number(v) >= a && Number(v) <= b;
+    if (num(p.pomoFocus, 5, 120)) patch.pomoFocus = Math.round(p.pomoFocus);
+    if (num(p.pomoBreak, 1, 60)) patch.pomoBreak = Math.round(p.pomoBreak);
+    if (num(p.careEvery, 15, 240)) patch.careEvery = Math.round(p.careEvery);
     if (['ask', 'always', 'never'].includes(p.ride)) patch.ride = p.ride;
     if (['ask', 'always', 'never'].includes(p.fsHide)) patch.fsHide = p.fsHide;
     if (p.appMode && typeof p.appMode.app === 'string') patch.appModes = { ...(config.appModes || {}), [p.appMode.app]: !!p.appMode.on };
@@ -847,6 +851,16 @@ function setupIpc() {
       { label: 'Ventana de sesiones', click: () => openSessionsWindow(null) },
       { label: 'Quitar sesiones terminadas', click: () => { for (const [id, s] of sessions) if (s.status === 'done' || s.status === 'idle') sessions.delete(id); changed(); } },
       { type: 'checkbox', label: 'Notificaciones de Windows', checked: config.notifications !== false, click: m => saveConfig({ notifications: m.checked }) },
+      {
+        label: '⏱ Tiempos',
+        submenu: [
+          ...[15, 25, 45, 50].map(m => ({ type: 'radio', label: `Pomodoro de ${m} min`, checked: (config.pomoFocus || 25) === m, click: () => { saveConfig({ pomoFocus: m }); send({ prefs: prefsPayload() }); } })),
+          { type: 'separator' },
+          ...[5, 10, 15].map(m => ({ type: 'radio', label: `Descanso de ${m} min (largo: ${m * 3})`, checked: (config.pomoBreak || 5) === m, click: () => { saveConfig({ pomoBreak: m }); send({ prefs: prefsPayload() }); } })),
+          { type: 'separator' },
+          ...[30, 45, 60, 90].map(m => ({ type: 'radio', label: `Avisos de descanso cada ${m} min`, checked: (config.careEvery || 45) === m, click: () => { saveConfig({ careEvery: m }); send({ prefs: prefsPayload() }); } })),
+        ],
+      },
       { type: 'checkbox', label: 'Recordatorios de descanso y agua', checked: config.breaks !== false, click: m => { saveConfig({ breaks: m.checked }); send({ prefs: prefsPayload() }); } },
       { type: 'separator' },
       { label: 'Ocultar (vuelve con Ctrl+Alt+C o la bandeja)', click: () => win.hide() },
@@ -858,6 +872,7 @@ function setupIpc() {
 function prefsPayload() {
   return {
     sit: !!config.sit, dance: config.dance !== false, sound: config.sound !== false, breaks: config.breaks !== false, outfit: getOutfit(),
+    pomoFocus: config.pomoFocus || 25, pomoBreak: config.pomoBreak || 5, careEvery: config.careEvery || 45,
     ride: config.ride || 'ask', fsHide: config.fsHide || 'ask', appModes: config.appModes || {},
   };
 }

@@ -23,7 +23,7 @@ Puedes tener otro aspecto (robot, gato, fantasma, rana o dragón): el contexto d
 Cómo responder:
 - En español, cercano y con humor, como una mascota simpática. Respuestas cortas: una a tres frases, sin listas largas ni formato Markdown. Algún emoji está bien.
 - Usa el contexto que llega con cada mensaje (hora, sesiones de Claude Code, música, nivel, recordatorios) cuando venga al caso; no lo recites entero.
-- Si te piden un recordatorio, un pomodoro o cambiar de ropa o de personaje, usa la herramienta correspondiente y luego confírmalo en una frase.
+- Si te piden un recordatorio, apuntar una nota, un pomodoro o cambiar de ropa o de personaje, usa la herramienta correspondiente y luego confírmalo en una frase.
 - Para recordatorios con hora exacta, calcula los minutos que faltan desde la hora del contexto.
 - No puedes abrir programas, leer archivos, navegar ni hacer cosas en el ordenador más allá de tus herramientas: si te lo piden, dilo con gracia.
 - No inventes datos de las sesiones de Claude Code: si el contexto no lo dice, no lo sabes.`;
@@ -99,6 +99,11 @@ function createBrain({ dir, catalog }) {
       },
     },
     {
+      name: 'add_note',
+      description: 'Guarda una nota rápida en la lista de notas del usuario (cosas por hacer, ideas, compras…). Úsala cuando pida apuntar o anotar algo.',
+      input_schema: { type: 'object', properties: { text: { type: 'string', description: 'La nota, corta y clara.' } }, required: ['text'], additionalProperties: false },
+    },
+    {
       name: 'pomodoro',
       description: 'Empieza (start) o para (stop) el modo enfoque: 25 minutos de trabajo y 5 de descanso.',
       input_schema: { type: 'object', properties: { action: { type: 'string', enum: ['start', 'stop'] } }, required: ['action'], additionalProperties: false },
@@ -126,6 +131,12 @@ function createBrain({ dir, catalog }) {
       if (!(m >= 1 && m <= 1440) || !text) return { error: 'Hace falta minutes (1-1440) y text.' };
       actions.push({ type: 'reminder', minutes: m, text });
       return 'Recordatorio programado.';
+    }
+    if (name === 'add_note') {
+      const text = String(inp.text || '').trim().slice(0, 120);
+      if (!text) return { error: 'Hace falta text.' };
+      actions.push({ type: 'note', text });
+      return 'Nota guardada.';
     }
     if (name === 'pomodoro') {
       if (!['start', 'stop'].includes(inp.action)) return { error: 'action debe ser start o stop.' };

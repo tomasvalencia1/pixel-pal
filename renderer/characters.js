@@ -60,6 +60,7 @@ const Characters = (() => {
   canvasEl.addEventListener('pointerup', e => {
     if (!downAt || Math.abs(e.screenX - downAt.x) + Math.abs(e.screenY - downAt.y) > 4) { downAt = null; return; }
     downAt = null;
+    if (window.Boost) Boost.cheer(1);   // 💛 un toque le sube el ánimo
     const now = Date.now();
     taps = taps.filter(x => now - x < 2500);
     taps.push(now);

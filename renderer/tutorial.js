@@ -117,7 +117,8 @@ const STEPS = [
         <div class="card"><b>⭐ Niveles y rachas</b>Gano experiencia con cada tarea de Claude, cada pomodoro y cada descanso. Llevo tu racha de días.</div>
         <div class="card"><b>🏅 Logros</b>16 logros por desbloquear. Pulsa la barra de nivel del panel para verlos.</div>
         <div class="card"><b>⏰ Recordatorios</b>Botón «Recordar»: escribe una nota y elige 10 min, 30 min o 1 hora.</div>
-        <div class="card"><b>🔕 A tu gusto</b>Los avisos de descanso se apagan en el menú del clic derecho.</div>
+        <div class="card"><b>⏱ A tu gusto</b>Cambia la duración del pomodoro y de los avisos en el clic derecho → Tiempos, o dímelo: «pomodoros de 50 minutos».</div>
+        <div class="card"><b>💛 Mi ánimo</b>Me pongo contento si me haces caso, trabajas y descansas. Si me ignoras mucho rato… me pongo tristón 🥺</div>
       </div>
       <div class="tries">
         <button class="btn sm" data-try="b:pomo" type="button">Probar: modo enfoque</button>
@@ -130,7 +131,8 @@ const STEPS = [
     html: `
       <p>Pulsa <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Espacio</kbd> (o «💬 Hablar» en el panel) y escríbeme, o pulsa 🎤 y dímelo en voz alta.</p>
       <div class="grid2">
-        <div class="card"><b>⏰ Recordatorios</b>«Recuérdame llamar a mamá en 10 minutos», «avísame a las 5 de la tarde», «mañana a las 8…»</div>
+        <div class="card"><b>⏰ Recordatorios</b>«Recuérdame llamar a mamá en 10 minutos», «avísame a las 5 de la tarde», «todos los días a las 9 recuérdame la pastilla».</div>
+        <div class="card"><b>📝 Notas y 📅 tu día</b>«Apunta que hay que comprar leche», «mis notas», «¿qué tengo hoy?». Por la mañana te saludo con tu agenda y por la tarde te hago un resumen.</div>
         <div class="card"><b>🍅 Enfoque</b>«Empieza un pomodoro», «para el pomodoro».</div>
         <div class="card"><b>🛍️ Ropa y personaje</b>«Ponte la gorra», «quítate todo», «conviértete en dragón».</div>
         <div class="card"><b>👀 Claude Code</b>«¿Cómo va Claude?», «¿qué nivel tengo?», «¿qué suena?»</div>
