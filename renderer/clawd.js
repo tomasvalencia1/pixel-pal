@@ -1,4 +1,4 @@
-// Sprite pixel art de Clawd, dibujado en código.
+// Sprite pixel art de Pal, dibujado en código.
 // Se dibuja en un lienzo real de 40 x 46 píxeles y luego se escala (cada píxel = 4 px en pantalla),
 // con un contorno oscuro automático para que se lea bien sobre fondos claros u oscuros.
 //
@@ -244,7 +244,7 @@ const ClawdSprite = (() => {
     }
   }
 
-  // 🥁🎸 La banda de mini Clawds de I Just Might: batería a la izquierda (si cabe) y guitarra a la derecha
+  // 🥁🎸 La banda de mini Pals de I Just Might: batería a la izquierda (si cabe) y guitarra a la derecha
   function miniBand(g, both) {
     const { beat, ph } = beatInfo(g.t);
     const hit = ph < 0.3;
@@ -748,7 +748,7 @@ const ClawdSprite = (() => {
     return { cx: 20, bottom, top: bottom - H, H, W, x0: 20 - W / 2, P };
   }
 
-  // Ojos y boca con todos sus gestos (los usan Clawd y los personajes de skins.js)
+  // Ojos y boca con todos sus gestos (los usan Pal y los personajes de skins.js)
   function drawEyes(P, xs, ey) {
     xs.forEach((e, idx) => {
       const style = P.eyes === 'wink' ? (idx === 0 ? 'closed' : 'open') : P.eyes;
@@ -967,7 +967,7 @@ const ClawdSprite = (() => {
     },
 
     // ✏️ Editar / escribir archivos: saca su laptop (vista lateral) y teclea
-    // La laptop queda en el suelo a la izquierda, con la pantalla inclinada hacia Clawd.
+    // La laptop queda en el suelo a la izquierda, con la pantalla inclinada hacia Pal.
     editing: {
       pose(P, t, lt) {
         const cyc = t % 4;
@@ -997,7 +997,7 @@ const ClawdSprite = (() => {
         const ex = hx + Math.cos(ang) * len, ey = hy - Math.sin(ang) * len;
         line(hx, hy - 1, ex, ey, C.metal, 2);
         if (ang > 1.2) {
-          // cara de la pantalla que mira a Clawd: brilla y parpadea con el código
+          // cara de la pantalla que mira a Pal: brilla y parpadea con el código
           const n = Math.max(Math.abs(ex - hx), Math.abs(ey - hy));
           for (let i = 1; i < n; i++) {
             const x = R(hx + ((ex - hx) * i) / n) + 2, y = R(hy - 1 + ((ey - hy) * i) / n);
@@ -1160,7 +1160,7 @@ const ClawdSprite = (() => {
       },
     },
 
-    // 🤖 Agentes / otras sesiones: mini Clawds que desfilan
+    // 🤖 Agentes / otras sesiones: mini Pals que desfilan
     agent: {
       pose(P, t) {
         const w = Math.floor(t * 5) % 2;
@@ -1529,7 +1529,7 @@ const ClawdSprite = (() => {
     },
 
     // 🕺 I Just Might (Bruno Mars), inspirado en su vídeo: traje verde, "aura" dorada,
-    // su propia banda de mini Clawds (batería y guitarra) y, cada 8 tiempos, un guiño con chispa
+    // su propia banda de mini Pals (batería y guitarra) y, cada 8 tiempos, un guiño con chispa
     imight: {
       pose(P, t) {
         const { beat, ph } = beatInfo(t);
@@ -1699,7 +1699,7 @@ const ClawdSprite = (() => {
         rect(x + 1, y - 2 - lift, 12, 1, '#E0A24A');               // pan de arriba
         rect(x, y - 1 - lift, 14, 3, '#E0A24A');
         [[3, -1], [7, -2], [10, 0], [5, 1]].forEach(([sx, sy]) => px(x + sx, y + sy - lift, '#FFF6E0')); // sésamo
-        // mordiscos: huecos en la esquina de arriba a la derecha (se ve el cuerpo de Clawd detrás)
+        // mordiscos: huecos en la esquina de arriba a la derecha (se ve el cuerpo de Pal detrás)
         for (let b = 0; b < Math.min(bites, 4); b++) {
           const bx = x + 13 - b * 2, by = y - 1 - lift + (b % 2);
           rect(bx, by, 2, 2, C.body);
@@ -2162,7 +2162,7 @@ const ClawdSprite = (() => {
     present();
   }
 
-  // ¿Hay un píxel de Clawd en este punto? (para dejar pasar los clics en lo transparente)
+  // ¿Hay un píxel de Pal en este punto? (para dejar pasar los clics en lo transparente)
   function isOpaque(xCss, yCss, cssW, cssH) {
     const gx = Math.floor((xCss / cssW) * GW);
     const gy = Math.floor((yCss / cssH) * GH);

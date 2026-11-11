@@ -1,5 +1,5 @@
 // Personajes originales. Cada uno tiene su PROPIO cuerpo (silueta, cabeza, brazos y pies), pero recibe las mismas
-// poses que Clawd (ojos, boca, brazos, saltos, estirarse/aplastarse), así que hace TODAS sus animaciones,
+// poses que Pal (ojos, boca, brazos, saltos, estirarse/aplastarse), así que hace TODAS sus animaciones,
 // bailes, canciones especiales y juegos. Además cada uno tiene manías propias, frases con su personalidad
 // y easter eggs: 5 toques rápidos y horas secretas.
 // Necesita clawd.js (ClawdSprite.api) cargado antes.
@@ -20,7 +20,7 @@ const Skins = (() => {
       rect(cx - h, cy + dy, 2 * h + 1, 1, c);
     }
   }
-  // punto donde estaría la mano según la pose (el mismo que usa Clawd, para que los objetos de las animaciones encajen)
+  // punto donde estaría la mano según la pose (el mismo que usa Pal, para que los objetos de las animaciones encajen)
   const hand = (side, off, g) => ({ x: (side < 0 ? 6 : 30) + off.x, y: g.bottom - 8 + off.y });
   // dibuja una forma de "1" y "." (las filas se invierten para el lado derecho)
   function shape(rows, x, y, c, side) {
@@ -28,7 +28,7 @@ const Skins = (() => {
   }
 
   const SK = {
-    // 🦀 Clawd naranja: el Clawd original (mismo cuerpo, colores clásicos y sin antena)
+    // 🦀 Pal naranja: el Pal original (mismo cuerpo, colores clásicos y sin antena)
     naranja: {
       palette: { body: '#D97757', shade: '#B85C3E', light: '#EC9C80', dark: '#7A3A28', blush: '#F6A592' },
     },

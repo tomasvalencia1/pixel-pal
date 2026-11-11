@@ -1,5 +1,5 @@
 // Conexión con Claude Code (hooks y línea de estado), sin necesitar Node instalado.
-// Cada evento de Claude Code se envía a Clawd con curl.exe, que viene con Windows 10 y 11.
+// Cada evento de Claude Code se envía a Pal con curl.exe, que viene con Windows 10 y 11.
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -22,7 +22,7 @@ const EVENTS = [
 
 function curlCommand(port, token, route) {
   // Funciona igual en cmd, PowerShell y Git Bash. -s: sin mensajes; -m 2: nunca tarda más de 2 s.
-  // Si Clawd está cerrado, curl falla en silencio y Claude Code sigue sin problemas.
+  // Si Pal está cerrado, curl falla en silencio y Claude Code sigue sin problemas.
   return `curl.exe -s -m 2 -H "content-type: application/json" -H "${MARK}: ${token}" --data-binary @- http://127.0.0.1:${port}/${route}`;
 }
 

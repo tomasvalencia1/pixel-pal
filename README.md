@@ -1,21 +1,21 @@
-# Clawd Flotante
+# Pixel Pal
 
-Un Clawd en pixel art que flota **siempre en primer plano** sobre el escritorio y muestra el estado
+Un Pal en pixel art que flota **siempre en primer plano** sobre el escritorio y muestra el estado
 y el progreso de tareas de todas tus sesiones de Claude Code: la pestaña Code de la app de escritorio,
 la terminal y los IDE.
 
-> Proyecto personal, no oficial. Clawd es la mascota de Anthropic; el sprite está dibujado en código.
+> Proyecto personal, no oficial. Pal es la mascota de Anthropic; el sprite está dibujado en código.
 
 ## Uso
 
 | Acción | Resultado |
 |---|---|
-| Pasar el ratón por encima de Clawd | Muestra el panel de sesiones |
-| Clic en Clawd | Fija o suelta el panel 📌 |
-| Arrastrar a Clawd | Lo mueve (recuerda la posición) |
+| Pasar el ratón por encima de Pal | Muestra el panel de sesiones |
+| Clic en Pal | Fija o suelta el panel 📌 |
+| Arrastrar a Pal | Lo mueve (recuerda la posición) |
 | Clic derecho | Menú: demo de animaciones, quitar sesiones terminadas, notificaciones, ocultar, salir |
-| Botón **🙈 Ocultar** del panel | Esconde a Clawd. Vuelve con **Ctrl+Alt+C** o con el icono de la bandeja |
-| **Ctrl+Alt+C** (en cualquier app) | Muestra u oculta a Clawd |
+| Botón **🙈 Ocultar** del panel | Esconde a Pal. Vuelve con **Ctrl+Alt+C** o con el icono de la bandeja |
+| **Ctrl+Alt+C** (en cualquier app) | Muestra u oculta a Pal |
 | Icono en la bandeja | Mostrar/ocultar, volver a la esquina, salir |
 
 Las zonas transparentes de la ventana dejan pasar los clics a lo que haya debajo.
@@ -33,7 +33,7 @@ Cada acción tiene su propia animación, con entrada y salida de los accesorios:
 | Buscar (Grep/Glob) | 🔍 Pasa una lupa que le agranda el ojo |
 | Comandos (Bash/PowerShell) | ⚡ Terminal flotante con texto verde escribiéndose |
 | Web o navegador | 🌐 Sostiene un globo terráqueo que gira, con un satélite |
-| Agentes u otras sesiones | 🤖 Mini Clawds desfilando |
+| Agentes u otras sesiones | 🤖 Mini Pals desfilando |
 | Planear tareas | 📋 Portapapeles marcando casillas con un lápiz |
 | Otras herramientas | ⚙️ Gira un engranaje |
 | Necesita tu permiso o respuesta | ❗ Salta, agita las pinzas y suda (también envía una notificación de Windows) |
@@ -47,7 +47,7 @@ Además:
 - Si lo arrastras, patalea y se ríe; si le haces clic, rebota.
 
 ### Juegos con tu ratón (cuando Claude no tiene nada que hacer)
-Cada 12–25 s (o cada 1–2 min si está dormido) Clawd hace algo al azar con tu cursor:
+Cada 12–25 s (o cada 1–2 min si está dormido) Pal hace algo al azar con tu cursor:
 
 | Juego | Qué hace |
 |---|---|
@@ -68,19 +68,19 @@ Para probar uno: `curl -H "x-clawd-token: $(cat ~/.clawd/token)" "http://127.0.0
 `peekaboo`, `highfive`, `beg`, `watch`, `hop`, `dance`, `kiss`, `stretch`).
 
 ### 🪑 Quédate sentado
-Al pasar el ratón por encima de Clawd aparece el panel con el botón **🪑 Quédate sentado**.
-Con él activo, Clawd no juega ni se mueve solo: se sienta en un cojín donde lo dejes.
+Al pasar el ratón por encima de Pal aparece el panel con el botón **🪑 Quédate sentado**.
+Con él activo, Pal no juega ni se mueve solo: se sienta en un cojín donde lo dejes.
 Lo puedes seguir arrastrando y se vuelve a sentar donde lo sueltes. Pulsa **🦀 Puedes moverte**
 para que vuelva a jugar. Se recuerda entre reinicios (también está en el menú del clic derecho).
 
 ### 💃 Baila con tu música
-Clawd lee el panel multimedia de Windows (lo que aparece al subir el volumen) con
+Pal lee el panel multimedia de Windows (lo que aparece al subir el volumen) con
 `scripts/media-watch.ps1`. Solo lee qué suena; no envía nada a ningún sitio.
 
 - **Si Claude está trabajando,** sigue con su animación, pero en versión bailando: cabecea al
   ritmo, se balancea, marca el compás con una pata y le salen notas ♪. Cada animación tiene su
   variación: teclea al compás y levanta la pinza cada 4 tiempos, el libro se balancea, los mini
-  Clawds saltan a la vez, el engranaje gira a golpes, sueña con notas…
+  Pals saltan a la vez, el engranaje gira a golpes, sueña con notas…
 - **Si Claude está libre,** baila de verdad: 6 pasos (pinzas arriba, robot, saltos, palmas,
   paso lateral y la ola) que cambian cada 4 tiempos. Si está en modo sentado, baila sentado.
 - **Frases sobre la canción:** al empezar ("¡Uy, Don't Stop Me Now! Temazo"), al cambiar, de vez
@@ -97,7 +97,7 @@ Clawd lee el panel multimedia de Windows (lo que aparece al subir el volumen) co
 | 24K Magic (Bruno Mars) | 💰 Cadena de oro, "levanta el techo" con las pinzas y lluvia de monedas |
 | two (bbno$) | ✌️ Saltito doble, pinzas en V, un "2" gigante de colores y su mini gemelo bailando |
 | Cualquier canción de Angine de Poitrine | 🎭🔺 Traje de lunares con un triángulo en el pecho, máscara alta triangular y nariz larguísima, guitarra de doble mástil con sacudidas en acentos irregulares (3+3+2), triángulos girando, pulso triangular en cada acento, anillos de loop y un mini batería enmascarado |
-| I Just Might (Bruno Mars) | 🕺 Inspirado en su videoclip: traje verde setentero, aura dorada que late, su propia banda de mini Clawds (batería y guitarra), deslizamiento con la mano en la solapa, giro y un guiño con chispa ✨ cada 8 tiempos |
+| I Just Might (Bruno Mars) | 🕺 Inspirado en su videoclip: traje verde setentero, aura dorada que late, su propia banda de mini Pals (batería y guitarra), deslizamiento con la mano en la solapa, giro y un guiño con chispa ✨ cada 8 tiempos |
 | Billie Jean (Michael Jackson) | ✨ Baldosas del suelo que se iluminan al ritmo, guante brillante, patada y giro de puntillas |
 | Don't Stop Me Now (Queen) | 🎤 Modo Freddie: bigote, medio pie de micro, corre sin parar con líneas de velocidad, puño en alto cada 8 tiempos y estrellas fugaces |
 | burger (bbno$) | 🍔 Sostiene una hamburguesa cuyo pan salta al ritmo, le da un mordisco cada 8 tiempos (con migas) y salen mini hamburguesas flotando |
@@ -130,14 +130,14 @@ Apple Music, Reproductor multimedia, Deezer, Tidal…) y, en el navegador, solo 
 el título dice "Official Video/Audio", "Lyrics", "Letra", "feat.", "remix"…, o hay álbum, como
 en YouTube Music. Con clic derecho → **Bailar también con vídeos**, baila con todo lo que suene.
 
-### 🪟 Clawd y Windows
+### 🪟 Pal y Windows
 Un vigilante (`scripts/system-watch.ps1`) lee en local la ventana activa, la inactividad, la
 intensidad de tecleo, la batería, el portapapeles, si la app de Claude está abierta y la música.
 **No lee qué teclas pulsas** (solo si hay actividad de teclado) y no envía nada a ningún sitio.
 
 | Qué | Cómo funciona |
 |---|---|
-| 🧗 **Subirse a ventanas** | Al cambiar a una ventana normal (sin maximizar y con sitio encima), Clawd **pregunta** "¿Me subo a tu ventana de…?" (Sí / No / Siempre / Nunca). Si dices que sí, salta encima, pasea por el borde, se va con la ventana si la mueves (si la mueves rápido: "¡Ey, despacio! 😵") y se cae al suelo si la minimizas o cambias de ventana. |
+| 🧗 **Subirse a ventanas** | Al cambiar a una ventana normal (sin maximizar y con sitio encima), Pal **pregunta** "¿Me subo a tu ventana de…?" (Sí / No / Siempre / Nunca). Si dices que sí, salta encima, pasea por el borde, se va con la ventana si la mueves (si la mueves rápido: "¡Ey, despacio! 😵") y se cae al suelo si la minimizas o cambias de ventana. |
 | 🎧 **Modo por app** | La primera vez que usas una app **pregunta** si se pone en modo: cascos (Spotify), gafas 3D (YouTube, Netflix), boina (Figma, Photoshop), corbata (Excel, Word, Docs), gafas de programador (VS Code, terminal, GitHub), cascos gamer (Steam) o charla (WhatsApp, Discord). Recuerda tu respuesta por app; con "Ahora no" vuelve a preguntar en 30 min. |
 | 🙈 **Pantalla completa** | **Pregunta** "¿Me escondo?" y vuelve al salir ("¡Ya volví! 👋"). |
 | 👋 **¡Volviste!** | Tras 5 min sin tocar el PC se duerme; al volver te saluda, dice cuánto estuviste fuera y cuántas tareas se completaron mientras tanto. |
@@ -147,7 +147,7 @@ intensidad de tecleo, la batería, el portapapeles, si la app de Claude está ab
 | 📸 **Capturas** | Al hacer una captura (imagen nueva en el portapapeles) saca una cámara: "¡Patata!". |
 | 📦 **Commits, push y tests** | Celebra los `git commit`, lanza un cohete con `git push`, se alegra si los tests pasan y se asusta si fallan. |
 | 😔 **Límite de uso** | Si Claude se detiene por el límite (hook `StopFailure`), se pone triste y, si lo sabe, dice a qué hora vuelve. |
-| 📄 **Soltar un archivo** | Suelta un archivo sobre Clawd y **pregunta** si abrir una sesión nueva. Se abre la **ventana flotante de sesiones**, con las sesiones que están trabajando y el botón para abrir Claude con el mensaje del archivo ya copiado (pegas con Ctrl+V). Si tienes la CLI `claude`, también ofrece abrirla en Windows Terminal. También se abre con el botón 🗂 del panel. |
+| 📄 **Soltar un archivo** | Suelta un archivo sobre Pal y **pregunta** si abrir una sesión nueva. Se abre la **ventana flotante de sesiones**, con las sesiones que están trabajando y el botón para abrir Claude con el mensaje del archivo ya copiado (pegas con Ctrl+V). Si tienes la CLI `claude`, también ofrece abrirla en Windows Terminal. También se abre con el botón 🗂 del panel. |
 | 📊 **Resumen del día** | Al cerrar la app de Claude: tareas, sesiones, tiempo trabajando, commits, tests y música del día. |
 | 🎅 **Disfraces** | Gorro de Papá Noel (1–26 dic), gorro de fiesta (31 dic–1 ene), bruja (24–31 oct) y flores de cempasúchil (1–2 nov). |
 | 🔊 **Sonidos** | Sonidos sintetizados al hablar, completar tareas, terminar, avisos, capturas… Se apagan con el botón 🔊 del panel. |
@@ -170,15 +170,15 @@ y en la terminal muestra algo como `🦀 · sesión 77% libre · semana 59% libr
 
 ⚠️ La línea de estado está documentada para la terminal (CLI). No está documentado si la pestaña Code
 de la app de escritorio la ejecuta. Si nunca ves el uso en la burbuja, abre una sesión con `claude`
-en la terminal y el dato llegará. Mientras no haya dato, Clawd simplemente no muestra la parte del uso.
+en la terminal y el dato llegará. Mientras no haya dato, Pal simplemente no muestra la parte del uso.
 Para ver cómo queda: `curl -H "x-clawd-token: $(cat ~/.clawd/token)" "http://127.0.0.1:7777/preview?a=usage"` (con datos de ejemplo si aún no hay reales).
 
 ### Número de sesiones
-Ya no hay círculo rojo encima de Clawd. Cuando hay más de una sesión activa, la leyenda
+Ya no hay círculo rojo encima de Pal. Cuando hay más de una sesión activa, la leyenda
 lo indica, por ejemplo "✏️ Escribiendo main.js · 2 sesiones".
 
 ### Burbujas de diálogo
-Clawd reacciona con frases a lo que pasa: cuando empieza una sesión (saluda según la hora),
+Pal reacciona con frases a lo que pasa: cuando empieza una sesión (saluda según la hora),
 cuando lee, edita, busca o ejecuta algo, cuando completa una tarea o todo el plan, cuando termina
 (y si tardó mucho, lo comenta), cuando necesita tu permiso (y te lo recuerda si tardas),
 cuando se duerme o se despierta, y cuando lo arrastras. Las frases están en `renderer/phrases.js`:
@@ -189,8 +189,8 @@ Para no ser pesado, las frases normales tienen una pausa mínima entre una y otr
 con lo que hace, por ejemplo "✏️ Escribiendo main.js".
 
 ### Se adapta al lugar de la pantalla
-Si Clawd está cerca del borde superior, el panel, la leyenda y las burbujas salen **hacia abajo**.
-Si está cerca del borde izquierdo, salen **hacia la derecha**. Clawd no se mueve al cambiar.
+Si Pal está cerca del borde superior, el panel, la leyenda y las burbujas salen **hacia abajo**.
+Si está cerca del borde izquierdo, salen **hacia la derecha**. Pal no se mueve al cambiar.
 Para ver todas las animaciones seguidas: clic derecho → **Ver animaciones (demo)**.
 
 Para probar una en concreto con la app abierta:
@@ -208,7 +208,7 @@ npm run install-hooks
 `install-hooks` añade los hooks a `~/.claude/settings.json`, después de guardar una copia
 `settings.json.bak-clawd-…`. Se puede ejecutar varias veces sin duplicar nada.
 
-Clawd **se abre solo** al empezar una sesión de Claude Code. También puedes abrirlo a mano:
+Pal **se abre solo** al empezar una sesión de Claude Code. También puedes abrirlo a mano:
 
 ```bash
 npm start
@@ -220,12 +220,12 @@ npm start
 npm run uninstall-hooks
 ```
 
-Solo quita los hooks de Clawd y deja el resto de tu configuración intacta.
+Solo quita los hooks de Pal y deja el resto de tu configuración intacta.
 
 ## Cómo funciona
 
 ```
-Claude Code ──hooks──▶ hooks/clawd-hook.js ──POST──▶ 127.0.0.1:7777 (main.js) ──IPC──▶ renderer/ (Clawd + panel)
+Claude Code ──hooks──▶ hooks/clawd-hook.js ──POST──▶ 127.0.0.1:7777 (main.js) ──IPC──▶ renderer/ (Pal + panel)
 ```
 
 - **`hooks/clawd-hook.js`**: recibe cada evento por stdin, lo reduce a lo necesario y lo envía.
@@ -245,12 +245,12 @@ Claude Code ──hooks──▶ hooks/clawd-hook.js ──POST──▶ 127.0.0
 - `stats.json`, `usage.json`, `track.txt`: estadísticas del día, uso del plan y ventana en la que está subido
 
 ## Seguridad y privacidad
-- **Clave secreta:** Clawd y el hook comparten una clave en `~/.clawd/token`, creada sola la
+- **Clave secreta:** Pal y el hook comparten una clave en `~/.clawd/token`, creada sola la
   primera vez. El servidor local (`127.0.0.1:7777`) rechaza cualquier petición sin esa clave y
-  cualquier petición que venga de una página web, así que una web no puede hacer hablar a Clawd
+  cualquier petición que venga de una página web, así que una web no puede hacer hablar a Pal
   ni inventar eventos. Solo `/ping` está abierto. Por eso los ejemplos de `curl` llevan
   `-H "x-clawd-token: …"`.
-- **Tus mensajes no salen de Claude:** el hook no envía a Clawd lo que escribes.
+- **Tus mensajes no salen de Claude:** el hook no envía a Pal lo que escribes.
 - **Sin registro:** `~/.clawd/events.log` está desactivado. Para depurar, añade `"debugLog": true`
   a `~/.clawd/config.json`.
 - **Claves tapadas:** en la leyenda y el panel, lo que parece una clave o un token dentro de un
@@ -260,4 +260,4 @@ Claude Code ──hooks──▶ hooks/clawd-hook.js ──POST──▶ 127.0.0
 ## Limitaciones
 - Las sesiones en la nube y los chats normales de claude.ai no ejecutan hooks locales, así que no aparecen.
 - El progreso X/Y solo aparece si Claude creó una lista de tareas en esa sesión.
-- Los juegos en pantalla completa exclusiva pueden tapar cualquier ventana, también a Clawd.
+- Los juegos en pantalla completa exclusiva pueden tapar cualquier ventana, también a Pal.

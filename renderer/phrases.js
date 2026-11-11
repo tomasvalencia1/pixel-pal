@@ -1,4 +1,4 @@
-// Frases de Clawd. {project}, {file}, {tool}, {n}, {done}, {total} se rellenan solas.
+// Frases de Pal. {project}, {file}, {tool}, {n}, {done}, {total} se rellenan solas.
 // Si a una frase le falta un dato (por ejemplo, no hay {file}), se elige otra que no lo necesite.
 const PHRASES = {
   hello: ['¡Hola! ¿En qué trabajamos hoy?', '¡Nueva sesión en {project}! 👋', 'Aquí estoy, listo para {project}', '¡Ey! Otra aventura: {project}', '¿Qué construimos hoy?'],
@@ -13,7 +13,7 @@ const PHRASES = {
   searching: ['¿Dónde estará…? 🔍', 'Buscando pistas', 'Rastreando el código', 'Sé que está por aquí…', 'Modo detective 🕵️'],
   terminal: ['Hora de la terminal ⚡', 'Ejecutando… crucemos las pinzas 🤞', 'A ver qué dice la consola', 'Lanzando el comando', 'Que no salga rojo, que no salga rojo…'],
   web: ['Voy a buscarlo en internet 🌐', 'Investigando un poco', 'Consultando la web', 'Dando una vuelta por internet'],
-  agent: ['Llamando refuerzos 🤖', 'Le paso esto al equipo', '¡Mini Clawds, a trabajar!', 'Divide y vencerás'],
+  agent: ['Llamando refuerzos 🤖', 'Le paso esto al equipo', '¡Mini Pals, a trabajar!', 'Divide y vencerás'],
   planning: ['Primero, un buen plan 📋', 'Organizándome…', 'Paso a paso', 'Apuntando pendientes'],
   tinkering: ['Usando {tool} ⚙️', 'Probemos {tool}', 'Una herramienta especial: {tool}'],
 
@@ -31,6 +31,7 @@ const PHRASES = {
 
   multi: ['¡Malabares con {n} sesiones! 🤹', '{n} sesiones a la vez, ¡vamos!', 'Modo multitarea: {n} sesiones'],
   sleep: ['Me echo una siestita… 💤', 'Zzz… avísame si me necesitas', 'Voy a cerrar los ojos un rato'],
+  shaken: ['🫨 ¡Vale, vale, ya estoy despierto! Aguanto 5 minutos', '¡Uy! Me has despertado del todo 👀 Cinco minutos sin dormir', '🫨 ¡Qué meneo! Prometo no dormirme en 5 minutos'],
   wake: ['¡Ah! Ya estoy despierto 👀', '¡Estoy aquí! ¿Qué pasó?', '*bostezo* ¡Vamos!'],
   idle: ['¿Algo más en lo que te ayude?', 'Estiro las pinzas un rato 🦀', 'Aquí sigo, por si acaso', 'Qué buen día para programar', '¿Un descanso? Te lo has ganado ☕'],
   drag: ['¡Wiii! 🎢', '¡Ey, que me mareo!', '¡Allá vamos!', '¡Uooo!'],
@@ -68,7 +69,7 @@ const PHRASES = {
   song_funk: ['🕶️ ¡Uptown Funk! Gafas de sol puestas', 'Este bajo es ilegal de bueno 🕺', 'Bruno Mars + Mark Ronson = peligro en la pista 😎'],
   mid_funk: ['Modo funk: imposible quedarse quieto 🕺', 'Pasito a la izquierda, pasito a la derecha 😎', 'Mis pinzas están demasiado calientes 🔥', 'Pose congelada… ¡y seguimos!'],
   song_bass: ['🎸 ¡Ese bajo! Queen en la casa', 'Saco el bajo para esta 🎸', 'Freddie estaría orgulloso de mis pinzas'],
-  mid_bass: ['Pum, pum, pum… 🎸', 'Ese riff es historia de la música', 'Levantando polvo con cada pisotón 💨', 'Bajista oficial de Clawd Records 🎸'],
+  mid_bass: ['Pum, pum, pum… 🎸', 'Ese riff es historia de la música', 'Levantando polvo con cada pisotón 💨', 'Bajista oficial de Pal Records 🎸'],
   song_gold: ['✨ ¡24K Magic! Saco las joyas', 'Modo oro activado 💰', 'Bruno Mars… tienes buen gusto 😎'],
   mid_gold: ['Brillando más que el oro ✨', 'Lluvia de monedas para todos 💰', 'Fiesta de lujo en tu escritorio 🥂', 'Bruno Mars sabe brillar 👑'],
   song_two: ['✌️ ¡two de bbno$! Bailo por dos', '¡bbno$! Traje a mi gemelo para esta ✌️', '¿two? Entonces somos dos 🦀🦀'],

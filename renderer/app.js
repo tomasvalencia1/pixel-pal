@@ -1,4 +1,4 @@
-// Controlador: estado de las sesiones -> acción de Clawd, burbujas, juegos con el ratón, panel, clics y arrastre
+// Controlador: estado de las sesiones -> acción de Pal, burbujas, juegos con el ratón, panel, clics y arrastre
 const canvas = document.getElementById('clawd');
 const caption = document.getElementById('caption');
 const panel = document.getElementById('panel');
@@ -25,6 +25,8 @@ let hoverPanel = false;
 let hideTimer = null;
 let ignoring = true;
 let down = null;
+let awakeUntil = 0;          // 🫨 sacudido: no se duerme hasta esta hora
+const shake = { dir: 0, turns: [], last: 0 };
 let look = null;
 let cursor = null;       // cursor en coordenadas de la ventana
 let sitting = false;
@@ -406,6 +408,7 @@ function desiredAction(now) {
   if (ss.some(s => s.status === 'thinking')) return 'thinking';
   const last = Math.max(0, ...ss.map(s => s.lastEvent + clockOffset));
   if (ss.length && now - last < 3 * 60 * 1000) return 'idle';
+  if (now < awakeUntil) return 'idle';     // 🫨 lo sacudiste: aguanta despierto
   return 'sleeping';
 }
 
@@ -633,6 +636,8 @@ function setCaption(action) {
   }
   // 🍅 tiempo del pomodoro (también por encima de la canción que suena)
   if (window.Boost && !Speech.speaking() && (!text || text.startsWith('🎵')) && Boost.caption()) { text = Boost.caption(); cls = ''; }
+  // 🫨 sacudido: cuánto le queda despierto (solo si no hay nada más que contar)
+  if (!text && !Speech.speaking() && Date.now() < awakeUntil && !state.sessions.some(isActive)) { const s = Math.ceil((awakeUntil - Date.now()) / 1000); text = `🫨 Despierto · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
   const key = cls + text;
   if (key === lastCaption) return;
   lastCaption = key;
@@ -656,6 +661,7 @@ function frame(ms) {
   // Extras de Windows: subirse a ventanas, ausencia, teclear contigo…
   const ex = window.Extras ? Extras.frame(now, dt, want, base, !!game) : null;
   if (ex && ex.want) want = ex.want;
+  if (now < awakeUntil && want === 'sleeping') want = 'idle';   // 🫨 sacudido: sigue despierto
   if (window.Boost && !game) want = Boost.want(want);   // 🍅 pomodoro: sentado y concentrado / estirándose
   const action = pickAction(now, want);
   ClawdSprite.draw(ctx, ms / 1000, action, {
@@ -717,7 +723,7 @@ window.clawd.onLayout(l => {
 
 // ---------- panel: hover / fijar ----------
 function updatePanel() {
-  // en "choca esos cinco", "mimos" o si Clawd te está preguntando algo, el panel no estorba
+  // en "choca esos cinco", "mimos" o si Pal te está preguntando algo, el panel no estorba
   const hoverGame = (Play.cur && Play.cur.def.hover) || Speech.asking();
   // con la conversación abierta el panel no aparece
   const show = !(window.Talk && Talk.isOpen()) && (pinned || ((hoverClawd && !hoverGame || hoverPanel) && !(down && down.moved)));
@@ -758,13 +764,13 @@ function hitTest(x, y, inside = true) {
 document.addEventListener('mousemove', e => { if (!down) hitTest(e.clientX, e.clientY); });
 window.clawd.onCursor(p => {
   cursor = { x: p.x, y: p.y };
-  // Clawd sigue el cursor con la mirada (coordenadas en píxeles de la rejilla del sprite)
+  // Pal sigue el cursor con la mirada (coordenadas en píxeles de la rejilla del sprite)
   const r = canvas.getBoundingClientRect();
   look = { x: ((p.x - r.left) / r.width) * 40, y: ((p.y - r.top) / r.height) * 46 };
   if (!down) hitTest(p.x, p.y, p.inside);
 });
 
-// ---------- arrastrar, tocar y hacer clic en Clawd ----------
+// ---------- arrastrar, tocar y hacer clic en Pal ----------
 canvas.addEventListener('pointerdown', e => {
   if (e.button !== 0 || !hoverClawd) return;
   if (Play.cur && Play.cur.def.hover) return; // en esos juegos basta con pasar por encima
@@ -779,8 +785,29 @@ canvas.addEventListener('pointermove', e => {
     updatePanel();
     Speech.say(Phrases.pick('drag'), 2, { dur: 1600 });
   }
-  if (down.moved) window.clawd.dragMove(e.screenX, e.screenY);
+  if (down.moved) {
+    window.clawd.dragMove(e.screenX, e.screenY);
+    // 🫨 ¿lo estás sacudiendo? (4 cambios de sentido en 1,5 s)
+    const dx = e.screenX - shake.last;
+    shake.last = e.screenX;
+    const dir = dx > 6 ? 1 : dx < -6 ? -1 : 0;
+    const now = Date.now();
+    if (dir && dir !== shake.dir) {
+      if (shake.dir) shake.turns.push(now);
+      shake.dir = dir;
+      shake.turns = shake.turns.filter(t => now - t < 1500);
+      if (shake.turns.length >= 4) { shake.turns = []; onShaken(); }
+    }
+  }
 });
+function onShaken() {
+  const first = Date.now() > awakeUntil;
+  awakeUntil = Date.now() + 5 * 60000;
+  if (!first) return;
+  ClawdSprite.trigger('poke');
+  if (window.Sound) Sound.play('hello');
+  Speech.say(Phrases.pick('shaken'), 3, { dur: 3500 });
+}
 function endDrag() {
   if (!down) return;
   window.clawd.dragEnd();
@@ -850,7 +877,8 @@ window.clawd.onCommand(c => {
     } else if (c.preview === 'sit-on' || c.preview === 'sit-off') {
       setSitting(c.preview === 'sit-on');
       window.clawd.savePref({ sit: sitting });
-    } else if (['check', 'hello', 'poke', 'love'].includes(c.preview)) ClawdSprite.trigger(c.preview);
+    } else if (c.preview === 'shake') onShaken();
+    else if (['check', 'hello', 'poke', 'love'].includes(c.preview)) ClawdSprite.trigger(c.preview);
     else { preview = c.preview; previewUntil = Date.now() + (c.ms || 8000); }
   }
 });

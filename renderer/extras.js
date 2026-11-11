@@ -1,4 +1,4 @@
-// Extras de Windows para Clawd: sonidos, subirse a ventanas, modo por app, pantalla completa,
+// Extras de Windows para Pal: sonidos, subirse a ventanas, modo por app, pantalla completa,
 // "¡volviste!", modo noche, teclear contigo, batería, capturas, commits/tests/límite,
 // soltar archivos, resumen del día y disfraces.
 // Usa lo que define app.js (Speech, Phrases, ClawdSprite, state, sitting, down, Play...).
@@ -69,7 +69,7 @@ const Extras = (() => {
   let pos = null;                // { anchor: [x, y], work }
   let fg = null;                 // ventana activa
   let lastBase = 'idle';
-  const FEET = 171;              // distancia del borde superior del dibujo a los pies de Clawd (px)
+  const FEET = 171;              // distancia del borde superior del dibujo a los pies de Pal (px)
 
   const APP_NAMES = {
     code: 'VS Code', cursor: 'Cursor', winword: 'Word', excel: 'Excel', powerpnt: 'PowerPoint', outlook: 'Outlook',
@@ -427,7 +427,7 @@ const Extras = (() => {
   }
 
   // ======================================================================
-  // 17. 📄 Soltar un archivo sobre Clawd
+  // 17. 📄 Soltar un archivo sobre Pal
   // ======================================================================
   document.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
   document.addEventListener('drop', e => {

@@ -1,4 +1,4 @@
-// 💬 Hablar con Clawd: por escrito o con el micrófono.
+// 💬 Hablar con Pal: por escrito o con el micrófono.
 // Primero intenta entender la frase aquí mismo, sin internet (recordatorios, pomodoro, ropa, personaje, estado de Claude…).
 // Si no la entiende y hay una clave de Anthropic puesta, se la pasa a Claude Haiku (brain.js en el proceso principal).
 // Usa lo que definen app.js / boost.js / characters.js (Speech, ClawdSprite, Sound, Boost, Characters, state, media…).
@@ -78,7 +78,7 @@ const Talk = (() => {
       o = o.slice(0, sp.start) + ' '.repeat(sp.end - sp.start) + o.slice(sp.end);
       ff = ff.slice(0, sp.start) + ' '.repeat(sp.end - sp.start) + ff.slice(sp.end);
     }
-    const trig = /\b(?:oye\s+|clawd\s*,?\s*)?(?:por favor\s+)?(?:recuerdame|recordame|recuerda(?:me)?|acuerdame|avisame|pon(?:me)?\s+un\s+recordatorio|crea\s+un\s+recordatorio|recordatorio|que me (?:recuerdes|avises))\b(?:\s+(?:para|de|que|a|sobre))*/;
+    const trig = /\b(?:(?:oye|eh|hola)\s*,?\s*)?(?:(?:clawd|pal)\s*,?\s*)?(?:por favor\s+)?(?:recuerdame|recordame|recuerda(?:me)?|acuerdame|avisame|pon(?:me)?\s+un\s+recordatorio|crea\s+un\s+recordatorio|recordatorio|que me (?:recuerdes|avises))\b(?:\s+(?:para|de|que|a|sobre))*/;
     const t = trig.exec(ff);
     if (t) { o = o.slice(0, t.index) + ' ' + o.slice(t.index + t[0].length); ff = ff.slice(0, t.index) + ' ' + ff.slice(t.index + t[0].length); }
     o = o.replace(/\s+/g, ' ').replace(/^[\s,.;:¡!¿?-]+|[\s,.;:¡!¿?-]+$/g, '').replace(/^(que|de|a|para)\s+/i, '').replace(/\s+(por favor)$/i, '').trim();
@@ -87,7 +87,7 @@ const Talk = (() => {
   }
 
   // ---------- catálogo: cómo se llama cada cosa al hablar ----------
-  const SKIN_WORDS = [['naranja', /\b(naranja|original|clasico)\b/], ['clawd', /\b(clawd|cangrejo)\b/], ['bolt', /\b(bolt|robot)\b/], ['miso', /\b(miso|gato|gatito|michi|minino)\b/], ['nube', /\b(nube|fantasma|fantasmita)\b/], ['rin', /\b(rin|rana|ranita|sapo)\b/], ['chispa', /\b(chispa|dragon|dragoncito)\b/]];
+  const SKIN_WORDS = [['naranja', /\b(naranja|original|clasico)\b/], ['clawd', /\b(pal|clawd|cangrejo)\b/], ['bolt', /\b(bolt|robot)\b/], ['miso', /\b(miso|gato|gatito|michi|minino)\b/], ['nube', /\b(nube|fantasma|fantasmita)\b/], ['rin', /\b(rin|rana|ranita|sapo)\b/], ['chispa', /\b(chispa|dragon|dragoncito)\b/]];
   const WEAR_WORDS = [   // las más largas primero ("corona de flores" antes que "corona")
     ['hat', 'flowers', /corona de flores|flores/], ['hat', 'nightcap', /gorrito de dormir|gorro de dormir|pijama|dormir/], ['hat', 'beanie', /gorro de lana|lana/],
     ['hat', 'party', /gorro de fiesta|fiesta|cumpleanos/], ['hat', 'tophat', /chistera|sombrero de copa/], ['hat', 'crown', /corona/],
@@ -319,7 +319,7 @@ const Talk = (() => {
       `Nivel ${i.level}, racha ${i.streak} días, ${i.ach}/${i.achTotal} logros, pomodoro: ${i.pomo === 'off' ? 'parado' : i.pomo === 'focus' ? `concentrado (${Math.ceil(i.pomoLeft / MIN)} min)` : 'descanso'}.`,
       `Recordatorios: ${i.reminders.length ? i.reminders.map(r => `${r.repeat || hhmm(r.at)} ${r.text}`).join('; ') : 'ninguno'}`,
       `Notas: ${i.notes.length ? i.notes.map((t, n) => `${n + 1}) ${t}`).join('; ') : 'ninguna'}`,
-      `Ánimo de Clawd: ${i.mood}% · Pomodoro de ${i.durations.focus} min, descanso de ${i.durations.break} min, avisos de descanso ${i.durations.careOn ? `cada ${i.durations.care} min` : 'apagados'}.`,
+      `Ánimo de Pal: ${i.mood}% · Pomodoro de ${i.durations.focus} min, descanso de ${i.durations.break} min, avisos de descanso ${i.durations.careOn ? `cada ${i.durations.care} min` : 'apagados'}.`,
       `Sombreros desbloqueados por nivel: ${CATALOG.hats.filter(h => h.lvl && i.level >= h.lvl).map(h => h.id).join(', ') || 'ninguno exclusivo aún'}`,
     ];
     return lines.join('\n');
@@ -455,7 +455,7 @@ const Talk = (() => {
     else if (c === 'brain-changed') refreshBrain();
     else if (c && typeof c.preview === 'string' && c.preview.startsWith('t:')) { show(); send(decodeURIComponent(c.preview.slice(2)).replace(/-/g, ' ')); }
   });
-  // Con la conversación abierta las burbujas de Clawd no se ven: los avisos importantes se copian aquí
+  // Con la conversación abierta las burbujas de Pal no se ven: los avisos importantes se copian aquí
   const originalSay = Speech.say;
   Speech.say = (text, priority = 1, opts = {}) => {
     const shown = originalSay(text, priority, opts);

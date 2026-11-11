@@ -3,10 +3,10 @@ const $ = id => document.getElementById(id);
 const canvas = $('sprite');
 ClawdSprite.setup(canvas);
 
-// Cada paso: título, contenido, animaciones que enseña Clawd a la izquierda y botones "probar" (Clawd las hace en tu escritorio)
+// Cada paso: título, contenido, animaciones que enseña Pal a la izquierda y botones "probar" (Pal las hace en tu escritorio)
 const STEPS = [
   {
-    title: '¡Hola! Soy Clawd 👋',
+    title: '¡Hola! Soy Pal 👋',
     anim: [['hello', 'Encantado'], ['idle', '']],
     html: `
       <p>Soy una mascota que vive en una esquina de tu pantalla, siempre por encima de las ventanas.</p>
@@ -47,16 +47,17 @@ const STEPS = [
         </div>
         <div class="msg" id="hooksMsg"></div>
       </div>
-      <div class="tip">Es seguro: antes de cambiar nada guardo una copia de tu configuración, y solo toco lo mío. Puedes desconectarlo en Ajustes, y al desinstalar Clawd se quita solo.</div>`,
+      <div class="tip">Es seguro: antes de cambiar nada guardo una copia de tu configuración, y solo toco lo mío. Puedes desconectarlo en Ajustes, y al desinstalar Pal se quita solo.</div>`,
   },
   {
     title: 'Cómo usarme',
-    anim: [['wave', 'Pasa el ratón por encima'], ['poke', 'Haz clic'], ['walk', 'Arrástrame']],
+    anim: [['wave', 'Pasa el ratón por encima'], ['poke', 'Haz clic'], ['walk', 'Arrástrame'], ['hop', '¡Sacúdeme!']],
     html: `
       <div class="grid2">
         <div class="card"><b>🖱️ Pasa el ratón</b>Aparece el panel con tus sesiones, su progreso y los botones.</div>
         <div class="card"><b>👆 Haz clic</b>Fija el panel para que no se cierre. Otro clic lo suelta.</div>
         <div class="card"><b>✋ Arrástrame</b>Ponme donde quieras: me quedo ahí y me giro para que el panel quepa.</div>
+        <div class="card"><b>🫨 Sacúdeme</b>Si me arrastras de un lado a otro, me despierto del todo y aguanto 5 minutos sin dormirme.</div>
         <div class="card"><b>📋 Clic derecho</b>Menú con todas las opciones: baile, sonidos, notificaciones…</div>
         <div class="card"><b>🙈 Ocultar</b><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd> me esconde y me vuelve a mostrar.</div>
         <div class="card"><b>🦀 Bandeja</b>Junto al reloj tienes mi icono: mostrar, ajustes, salir…</div>
@@ -144,14 +145,22 @@ const STEPS = [
   },
   {
     title: 'Elige tu personaje 🛍️',
-    anim: [['wave', 'Clawd', 'clawd'], ['wave', 'Bolt, el robot', 'bolt'], ['wave', 'Miso, el gatito', 'miso'], ['wave', 'Nube, el fantasma', 'nube'], ['wave', 'Rin, la rana', 'rin'], ['wave', 'Chispa, el dragón', 'chispa']],
+    anim: [['wave', 'Pal', 'clawd'], ['wave', 'Bolt, el robot', 'bolt'], ['wave', 'Miso, el gatito', 'miso'], ['wave', 'Nube, el fantasma', 'nube'], ['wave', 'Rin, la rana', 'rin'], ['wave', 'Chispa, el dragón', 'chispa']],
     html: `
-      <p>En la <b>🛍️ Tienda</b> (panel, clic derecho o bandeja) puedes cambiar de personaje: <b>Clawd</b>, <b>Bolt</b> 🤖, <b>Miso</b> 🐱, <b>Nube</b> 👻, <b>Rin</b> 🐸 y <b>Chispa</b> 🐉. Todos hacen todas las animaciones y tienen su propia personalidad.</p>
+      <p>En la <b>🛍️ Tienda</b> (panel, clic derecho o bandeja) puedes cambiar de personaje: <b>Pal</b>, <b>Bolt</b> 🤖, <b>Miso</b> 🐱, <b>Nube</b> 👻, <b>Rin</b> 🐸 y <b>Chispa</b> 🐉. Todos hacen todas las animaciones y tienen su propia personalidad.</p>
       <p>También hay <b>sombreros, gafas y cosas para el cuello</b>, todo gratis. Algunos sombreros especiales se desbloquean subiendo de nivel.</p>
       <div class="tip">🥚 Pista: cada personaje esconde sorpresas. Prueba a tocarlo <b>5 veces seguidas</b>… y atento a ciertas horas del día.</div>
       <div class="tries">
         <button class="btn sm" data-try="b:hat" type="button">Abrir la tienda</button>
       </div>`,
+  },
+  {
+    title: 'Mira el vídeo 🎬',
+    anim: [['wave', '']],
+    wide: true,
+    html: `
+      <p class="muted small">Todo lo anterior en 90 segundos. Puedes verlo a pantalla completa con el botón del vídeo.</p>
+      <video id="tutvideo" src="media/tutorial.mp4" controls preload="metadata" playsinline></video>`,
   },
   {
     title: '¡Todo listo! 🎉',
@@ -177,7 +186,7 @@ let status = null;
 let animIdx = 0;
 let animAt = 0;
 
-// ---------- Clawd de la izquierda ----------
+// ---------- Pal de la izquierda ----------
 function frame(ms) {
   const t = ms / 1000;
   const s = STEPS[step];
@@ -192,6 +201,9 @@ function frame(ms) {
 // ---------- pasos ----------
 function render() {
   const s = STEPS[step];
+  const old = document.getElementById('tutvideo');
+  if (old) old.pause();
+  document.body.classList.toggle('wide', !!s.wide);
   $('content').innerHTML = `<h2>${s.title}</h2>${s.html}`;
   animIdx = 0;
   animAt = performance.now() / 1000;
@@ -222,7 +234,7 @@ function renderHooks(msg, kind) {
     btn.textContent = 'Reintentar';
   } else if (h.installed) {
     pill.className = 'pill ok'; pill.textContent = 'Conectado ✓';
-    info.textContent = 'Listo. Las sesiones nuevas de Claude Code aparecerán en Clawd.';
+    info.textContent = 'Listo. Las sesiones nuevas de Claude Code aparecerán en Pal.';
     btn.textContent = 'Conectado'; btn.disabled = true;
   } else {
     pill.className = h.found ? 'pill no' : 'pill warn';

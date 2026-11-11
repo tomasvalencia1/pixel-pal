@@ -1,4 +1,4 @@
-// Más funciones para Clawd, inspiradas en otras mascotas de escritorio:
+// Más funciones para Pal, inspiradas en otras mascotas de escritorio:
 //   🍅 Pomodoro / modo enfoque (PomodoroPet, Mac Pet)
 //   🧘 Recordatorios de descanso, agua y vista (PawPause, Mewtoo)
 //   ⭐ Niveles, rachas, logros y sombreros exclusivos por nivel (Tamamon, Pomopet, Bongo Cat)
@@ -15,7 +15,7 @@ const Boost = (() => {
   const notify = (title, body) => { try { window.clawd.notify(title, body); } catch { /* nada */ } };
 
   // ======================================================================
-  // 💾 Progreso guardado (progress.json en la carpeta de datos de Clawd)
+  // 💾 Progreso guardado (progress.json en la carpeta de datos de Pal)
   // ======================================================================
   const DEFAULTS = {
     xp: 0, totals: {}, streak: { last: null, count: 0, best: 0 }, todayPomos: { date: null, n: 0 }, ach: [], reminders: [],
@@ -164,7 +164,7 @@ const Boost = (() => {
     row.append(b, bar, xp);
     const stats = document.createElement('div'); stats.className = 'bstats';
     stats.textContent = `${moodFace()} ${moodV()}% · 🔥 ${streakNow()} ${streakNow() === 1 ? 'día' : 'días'} · 🍅 ${pomos} hoy · 🏅 ${data.ach.length}/${ACH.length}`;
-    stats.title = `Ánimo de Clawd: ${moodV()}% (sube si le haces caso, trabajas y descansas)`;
+    stats.title = `Ánimo de Pal: ${moodV()}% (sube si le haces caso, trabajas y descansas)`;
     box.append(row, stats);
   }
 
@@ -320,7 +320,7 @@ const Boost = (() => {
   function remindTick(now) {
     const due = data.reminders.filter(r => r.at <= now).sort((a, b) => a.at - b.at)[0];
     if (!due) return;
-    if (!due.notified) { due.notified = true; notify('⏰ Recordatorio de Clawd', due.text); save(); }
+    if (!due.notified) { due.notified = true; notify('⏰ Recordatorio de Pal', due.text); save(); }
     const late = now - due.at > 2 * MIN ? [`(era para las ${hhmm(due.at)})`] : undefined;
     const ok = Speech.say(`⏰ ${due.text}`, 3, {
       alert: true, dur: 30000, lines: late,
@@ -573,7 +573,7 @@ const Boost = (() => {
   renderPomo();
 
   // ---------- lo que pregunta app.js / extras.js ----------
-  // Acción de Clawd: con el pomodoro se queda sentado y concentrado; en el descanso se estira
+  // Acción de Pal: con el pomodoro se queda sentado y concentrado; en el descanso se estira
   function want(w) {
     if (pomo.mode === 'focus' && (w === 'idle' || w === 'sleeping')) return 'sit';
     if (pomo.mode === 'break' && ['idle', 'sleeping', 'sit'].includes(w)) return (Date.now() / 1000) % 30 < 8 ? 'stretch' : 'idle';
@@ -599,7 +599,7 @@ const Boost = (() => {
     else if (cmd === 'evening') Speech.say('🌙 ¡Buen trabajo hoy! Tu resumen:', 3, { dur: 20000, lines: eveningLines(), buttons: [{ label: 'Gracias 💕', value: 'x' }] });
   }
 
-  // ---------- para hablar con Clawd (talk.js) ----------
+  // ---------- para hablar con Pal (talk.js) ----------
   function remindAt(at, text, repeat) {
     if (repeat && validRepeat(repeat)) at = nextAt(repeat);
     else repeat = undefined;

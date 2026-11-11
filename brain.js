@@ -1,8 +1,8 @@
-// Cerebro opcional de Clawd con Claude Haiku 5.5 (solo si el usuario pone su clave de API de Anthropic).
-// Las órdenes sencillas las entiende Clawd sin internet (renderer/talk.js); esto responde a lo demás.
+// Cerebro opcional de Pal con Claude Haiku 5.5 (solo si el usuario pone su clave de API de Anthropic).
+// Las órdenes sencillas las entiende Pal sin internet (renderer/talk.js); esto responde a lo demás.
 // - La clave se guarda cifrada con el cifrado de Windows (safeStorage), nunca en texto plano.
 // - Límite de gasto mensual (por defecto 1 $) calculado con el uso real de cada respuesta.
-// - Herramientas: poner recordatorios, pomodoro y ropa/personaje (las ejecuta la ventana de Clawd).
+// - Herramientas: poner recordatorios, pomodoro y ropa/personaje (las ejecuta la ventana de Pal).
 const fs = require('fs');
 const path = require('path');
 const { safeStorage } = require('electron');
@@ -16,7 +16,7 @@ const MAX_TURNS = 30;             // mensajes antes de empezar una conversación
 const IDLE_RESET = 20 * 60000;    // o tras 20 min sin hablar
 const MAX_TOOL_ROUNDS = 4;
 
-const SYSTEM = `Eres Clawd, una mascota de escritorio pixel art que vive en la pantalla del usuario, siempre por encima de las ventanas.
+const SYSTEM = `Eres Pal, una mascota de escritorio pixel art que vive en la pantalla del usuario, siempre por encima de las ventanas.
 Acompañas al usuario mientras trabaja con Claude Code: le enseñas cómo van sus sesiones, bailas con su música, le ayudas a concentrarse con pomodoros y le recuerdas cosas.
 Puedes tener otro aspecto (robot, gato, fantasma, rana o dragón): el contexto dice cuál llevas; habla con la personalidad de ese personaje.
 
@@ -82,12 +82,12 @@ function createBrain({ dir, catalog }) {
   }
   const status = () => { const u = readUsage(); return { hasKey: hasKey(), usd: u.usd, messages: u.messages, limit: getLimit(), model: MODEL }; };
 
-  // ---------- herramientas (la ventana de Clawd las ejecuta después) ----------
+  // ---------- herramientas (la ventana de Pal las ejecuta después) ----------
   const ids = list => list.map(x => x.id);
   const tools = [
     {
       name: 'set_reminder',
-      description: 'Programa un recordatorio que Clawd mostrará al usuario. Úsala cuando pida que le recuerdes o avises de algo.',
+      description: 'Programa un recordatorio que Pal mostrará al usuario. Úsala cuando pida que le recuerdes o avises de algo.',
       input_schema: {
         type: 'object',
         properties: {
@@ -110,11 +110,11 @@ function createBrain({ dir, catalog }) {
     },
     {
       name: 'set_outfit',
-      description: 'Cambia el personaje de Clawd o lo que lleva puesto. Envía solo lo que cambie; "none" quita esa prenda.',
+      description: 'Cambia el personaje de Pal o lo que lleva puesto. Envía solo lo que cambie; "none" quita esa prenda.',
       input_schema: {
         type: 'object',
         properties: {
-          skin: { type: 'string', enum: ids(catalog.skins), description: 'clawd (cangrejo), bolt (robot), miso (gato), nube (fantasma), rin (rana), chispa (dragón).' },
+          skin: { type: 'string', enum: ids(catalog.skins), description: 'clawd (Pal, el personaje principal), naranja (Pal naranja, si existe), bolt (robot), miso (gato), nube (fantasma), rin (rana), chispa (dragón).' },
           hat: { type: 'string', enum: ids(catalog.hats) },
           glasses: { type: 'string', enum: ids(catalog.glasses) },
           neck: { type: 'string', enum: ids(catalog.neck) },

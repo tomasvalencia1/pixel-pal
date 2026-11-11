@@ -27,8 +27,8 @@ html, body {
 
 .hidden:not(#panel) { display: none !important; }
 
-/* ---------- escenario de Clawd ----------
-   Normal: Clawd abajo a la derecha, panel y burbujas hacia arriba.
+/* ---------- escenario de Pal ----------
+   Normal: Pal abajo a la derecha, panel y burbujas hacia arriba.
    .flip-v: hay poco espacio arriba -> todo sale hacia abajo.
    .flip-h: hay poco espacio a la izquierda -> todo sale hacia la derecha. */
 #stage {
@@ -274,7 +274,7 @@ body.flip-v #panel.hidden { transform: translateY(-6px); }
 .rem-item button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; border-radius: 4px; }
 .rem-item button:hover { color: var(--text); background: rgba(255, 255, 255, 0.1); }
 
-/* ---------- 💬 hablar con Clawd ---------- */
+/* ---------- 💬 hablar con Pal ---------- */
 .opts { flex-wrap: wrap; }
 #talk {
   position: absolute; right: 8px; bottom: 216px; width: 320px; height: 272px;

@@ -34,7 +34,7 @@ function render(d) {
     f.append(fname, x);
     newBox.appendChild(f);
   } else {
-    newBox.appendChild(el('div', 'empty', 'Suelta un archivo sobre Clawd para empezar una sesión con él.'));
+    newBox.appendChild(el('div', 'empty', 'Suelta un archivo sobre Pal para empezar una sesión con él.'));
   }
 
   const b1 = el('button', 'btn primary');

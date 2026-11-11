@@ -1,8 +1,8 @@
-// Catálogo de personajes y accesorios de la tienda (lo usan la ventana de Clawd, la tienda y el proceso principal)
+// Catálogo de personajes y accesorios de la tienda (lo usan la ventana de Pal, la tienda y el proceso principal)
 const CATALOG = {
   skins: [
-    { id: 'clawd', name: 'Clawd', emoji: '🦀', desc: 'El de siempre: pinzas, buen humor y mucho código.' },
-    { id: 'naranja', name: 'Clawd naranja', emoji: '🧡', desc: 'El Clawd clásico, con sus colores naranjas de toda la vida.' },
+    { id: 'clawd', name: 'Pal', emoji: '🦀', desc: 'El de siempre: pinzas, buen humor y mucho código.' },
+    { id: 'naranja', name: 'Pal naranja', emoji: '🧡', desc: 'El Pal clásico, con sus colores naranjas de toda la vida.' },
     { id: 'bolt', name: 'Bolt', emoji: '🤖', desc: 'Robot con antena y tornillos. Habla en binario cuando se aburre.' },
     { id: 'miso', name: 'Miso', emoji: '🐱', desc: 'Gatito gris con cola juguetona. Ronronea si le haces caso.' },
     { id: 'nube', name: 'Nube', emoji: '👻', desc: 'Fantasmita flotante. A medianoche se pone travieso.' },

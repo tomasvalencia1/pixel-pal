@@ -1,4 +1,4 @@
-// Clawd Flotante — proceso principal de Electron
+// Pixel Pal — proceso principal de Electron
 // - Ventana transparente, sin bordes y SIEMPRE en primer plano
 // - Servidor local (127.0.0.1:7777) que recibe los eventos de los hooks de Claude Code
 // - Estado de todas las sesiones y sus tareas
@@ -25,7 +25,7 @@ const WIN_H = 500;
 const STALE_MS = 30 * 60 * 1000;
 
 // ---------- clave secreta compartida con el hook ----------
-// Sin ella, cualquier página web o programa podría hablar con Clawd por 127.0.0.1:7777.
+// Sin ella, cualquier página web o programa podría hablar con Pal por 127.0.0.1:7777.
 const TOKEN_FILE = path.join(DIR, 'token');
 function ensureToken() {
   try { return fs.readFileSync(TOKEN_FILE, 'utf8').trim(); } catch { /* no existe */ }
@@ -203,7 +203,7 @@ function handleEvent(ev) {
       break;
     }
     case 'StopFailure':
-      // Claude se detuvo por un error; si es por límite de uso, Clawd lo cuenta
+      // Claude se detuvo por un error; si es por límite de uso, Pal lo cuenta
       if (ev.error === 'rate_limit') {
         s.status = 'limited';
         s.message = 'Límite de uso alcanzado';
@@ -228,7 +228,7 @@ function handleEvent(ev) {
   }
 
   if (s.status === 'waiting' && prev !== 'waiting' && config.notifications !== false) {
-    notify(`Clawd · ${s.project}`, s.message);
+    notify(`Pal · ${s.project}`, s.message);
   }
   changed();
 }
@@ -431,7 +431,7 @@ function loadState() {
 // ---------- servidor local ----------
 function startServer() {
   const server = http.createServer((req, res) => {
-    // /ping es lo único abierto (el hook lo usa para saber si Clawd está despierto)
+    // /ping es lo único abierto (el hook lo usa para saber si Pal está despierto)
     if (req.method === 'GET' && req.url === '/ping') {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ ok: true, app: 'clawd', visible: !!(win && !win.isDestroyed() && win.isVisible()), bounds: win && !win.isDestroyed() ? win.getBounds() : null }));
@@ -453,7 +453,7 @@ function startServer() {
       }
       res.writeHead(204); return res.end();
     }
-    // Mover a Clawd (para pruebas): /move?x=100&y=50  (coordenadas del dibujo en pantalla)
+    // Mover a Pal (para pruebas): /move?x=100&y=50  (coordenadas del dibujo en pantalla)
     if (req.method === 'GET' && req.url.startsWith('/move')) {
       const q = new URL(req.url, 'http://x').searchParams;
       anchor = clampAnchor([Number(q.get('x')) || 0, Number(q.get('y')) || 0]);
@@ -494,8 +494,8 @@ function startServer() {
     res.writeHead(404); res.end();
   });
   server.on('error', e => {
-    console.error('Servidor Clawd:', e.message);
-    if (e.code === 'EADDRINUSE') serverError = `El puerto ${PORT} está ocupado por otro programa: Clawd no recibirá los eventos de Claude Code.`;
+    console.error('Servidor Pal:', e.message);
+    if (e.code === 'EADDRINUSE') serverError = `El puerto ${PORT} está ocupado por otro programa: Pal no recibirá los eventos de Claude Code.`;
   });
   server.listen(PORT, '127.0.0.1');
 }
@@ -539,9 +539,9 @@ function keepOnTop() {
 }
 
 // ---------- posición adaptable ----------
-// "anchor" = esquina superior izquierda del dibujo de Clawd en pantalla.
+// "anchor" = esquina superior izquierda del dibujo de Pal en pantalla.
 // Según dónde esté, el panel y las burbujas salen hacia arriba o abajo, a la izquierda o la derecha,
-// y la ventana se recoloca para que Clawd no se mueva.
+// y la ventana se recoloca para que Pal no se mueva.
 const SPRITE_W = 160;
 const STAGE_H = 212;
 const CAPTION_H = 28;
@@ -583,7 +583,7 @@ function applyLayout() {
   }
 }
 
-// Posición de Clawd y área de trabajo de su pantalla (para subirse a ventanas y caer al suelo)
+// Posición de Pal y área de trabajo de su pantalla (para subirse a ventanas y caer al suelo)
 function sendPos() {
   if (!win || win.isDestroyed() || !anchor) return;
   const work = screen.getDisplayNearestPoint({ x: Math.round(anchor[0] + 80), y: Math.round(anchor[1] + 100) }).workArea;
@@ -635,7 +635,7 @@ function createWindow() {
   // Reafirma el primer plano cada segundo y medio (otras ventanas "topmost" pueden taparlo)
   setInterval(keepOnTop, 1500);
 
-  // Posición del cursor -> el renderer decide si deja pasar los clics, y Clawd lo sigue con la mirada
+  // Posición del cursor -> el renderer decide si deja pasar los clics, y Pal lo sigue con la mirada
   setInterval(() => {
     if (!win || win.isDestroyed() || !win.isVisible()) return;
     const p = screen.getCursorScreenPoint();
@@ -654,7 +654,7 @@ function toggleVisible() {
 // ---------- 🛍️ tienda: personaje y accesorios (todo gratis; algunos sombreros por nivel) ----------
 const CATALOG = require('./renderer/catalog.js');
 
-// ---------- 💬 hablar con Clawd: micrófono (reconocimiento de voz de Windows) y cerebro de Haiku opcional ----------
+// ---------- 💬 hablar con Pal: micrófono (reconocimiento de voz de Windows) y cerebro de Haiku opcional ----------
 const { createBrain } = require('./brain');
 const brain = createBrain({ dir: DIR, catalog: CATALOG });
 let brainWin = null;
@@ -717,7 +717,7 @@ function openShop() {
   if (shopWin && !shopWin.isDestroyed()) { shopWin.show(); shopWin.focus(); return; }
   shopWin = new BrowserWindow({
     width: 640, height: 520, minWidth: 560, minHeight: 440, center: true, frame: false, resizable: true,
-    backgroundColor: '#1c1a18', title: 'Tienda de Clawd', show: false,
+    backgroundColor: '#1c1a18', title: 'Tienda de Pal', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload-shop.js'), contextIsolation: true, nodeIntegration: false },
   });
   shopWin.loadFile(path.join(__dirname, 'renderer', 'shop.html'));
@@ -731,7 +731,7 @@ function setupIpc() {
   ipcMain.handle('shop-get', () => ({ outfit: getOutfit(), level: currentLevel() }));
   ipcMain.handle('shop-set', (_e, p) => ({ outfit: setOutfit(p), level: currentLevel() }));
   ipcMain.on('shop-close', () => { if (shopWin && !shopWin.isDestroyed()) shopWin.close(); });
-  // 💬 hablar con Clawd
+  // 💬 hablar con Pal
   ipcMain.handle('talk-ask', (_e, text, ctx) => brain.ask(String(text || ''), String(ctx || '')));
   ipcMain.handle('talk-status', () => brain.status());
   ipcMain.handle('talk-listen', () => listenOnce());
@@ -752,14 +752,14 @@ function setupIpc() {
     anchor = [drag.ax + p.x - drag.x, drag.ay + p.y - drag.y];
     applyLayout();
   });
-  // Clawd camina solo (juegos con el ratón)
+  // Pal camina solo (juegos con el ratón)
   ipcMain.on('move-by', (_e, d) => {
     if (drag || !anchor) return;
     anchor = clampAnchor([anchor[0] + (Number(d.x) || 0), anchor[1] + (Number(d.y) || 0)]);
     applyLayout();
   });
   ipcMain.on('move-end', () => saveConfig({ anchor, pos: null }));
-  // ⭐ Progreso (niveles, logros, recordatorios) guardado junto al resto de datos de Clawd
+  // ⭐ Progreso (niveles, logros, recordatorios) guardado junto al resto de datos de Pal
   const PROGRESS_FILE = path.join(DIR, 'progress.json');
   ipcMain.handle('progress-load', () => readJson(PROGRESS_FILE, null));
   ipcMain.on('progress-save', (_e, d) => {
@@ -769,9 +769,9 @@ function setupIpc() {
   // 🔔 Aviso de Windows (pomodoro, recordatorios)
   ipcMain.on('notify', (_e, n) => {
     if (!n || config.notifications === false) return;
-    notify(String(n.title || 'Clawd').slice(0, 80), String(n.body || '').slice(0, 200));
+    notify(String(n.title || 'Pal').slice(0, 80), String(n.body || '').slice(0, 200));
   });
-  // ⌨️ Para escribir un recordatorio, la ventana de Clawd recibe el teclado solo mientras escribes
+  // ⌨️ Para escribir un recordatorio, la ventana de Pal recibe el teclado solo mientras escribes
   ipcMain.on('input-focus', (_e, on) => {
     if (!win || win.isDestroyed()) return;
     win.setFocusable(!!on);
@@ -799,7 +799,7 @@ function setupIpc() {
     anchor = clampAnchor([Number(p.x) || 0, Number(p.y) || 0]);
     applyLayout();
   });
-  // Ventana en la que Clawd está subido: el vigilante la sigue aunque deje de estar activa
+  // Ventana en la que Pal está subido: el vigilante la sigue aunque deje de estar activa
   ipcMain.on('track', (_e, id) => {
     try { fs.writeFileSync(path.join(DIR, 'track.txt'), String(Number(id) || 0)); } catch { /* nada */ }
   });
@@ -814,7 +814,7 @@ function setupIpc() {
     win.hide();
     if (!config.hideTipShown && tray) {
       saveConfig({ hideTipShown: true });
-      try { tray.displayBalloon({ title: 'Clawd se escondió', content: 'Vuelve con Ctrl+Alt+C o haciendo clic en este icono.' }); } catch { /* nada */ }
+      try { tray.displayBalloon({ title: 'Pal se escondió', content: 'Vuelve con Ctrl+Alt+C o haciendo clic en este icono.' }); } catch { /* nada */ }
     }
   });
   // Le soltaste un archivo encima: abre la ventana de sesiones
@@ -836,7 +836,7 @@ function setupIpc() {
       { label: '⚙️ Ajustes…', click: () => openUi('settings') },
       { label: '📖 Ver el tutorial', click: () => openUi('tutorial') },
       { type: 'separator' },
-      { label: '💬 Hablar con Clawd   (Ctrl+Alt+Espacio)', click: openTalk },
+      { label: '💬 Hablar con Pal   (Ctrl+Alt+Espacio)', click: openTalk },
       { label: '🧠 Cerebro de Haiku (opcional)…', click: openBrain },
       { label: '🛍️ Tienda: personajes y accesorios', click: openShop },
       { label: 'Fijar / soltar panel', click: () => send('toggle-pin') },
@@ -877,7 +877,7 @@ function prefsPayload() {
   };
 }
 
-// ---------- ventana flotante de sesiones (al soltar un archivo sobre Clawd) ----------
+// ---------- ventana flotante de sesiones (al soltar un archivo sobre Pal) ----------
 const { spawnSync } = require('child_process');
 let sessWin = null;
 let pendingFile = null;
@@ -906,7 +906,7 @@ function openSessionsWindow(file) {
   const y = Math.min(Math.max(work.y + 10, anchor[1] - 120), work.y + work.height - H - 10);
   sessWin = new BrowserWindow({
     width: W, height: H, x: Math.round(x), y: Math.round(y), frame: false, resizable: true, minWidth: 320, minHeight: 300,
-    alwaysOnTop: true, backgroundColor: '#1c1a18', title: 'Clawd · Sesiones', show: false,
+    alwaysOnTop: true, backgroundColor: '#1c1a18', title: 'Pal · Sesiones', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload-sessions.js'), contextIsolation: true, nodeIntegration: false },
   });
   sessWin.setAlwaysOnTop(true, 'floating');
@@ -977,7 +977,7 @@ function openUi(page) {
   const W = page === 'tutorial' ? 760 : 560, H = page === 'tutorial' ? 600 : 640;
   uiWin = new BrowserWindow({
     width: W, height: H, minWidth: 480, minHeight: 480, center: true, frame: false, resizable: true,
-    backgroundColor: '#1c1a18', title: page === 'tutorial' ? 'Bienvenido a Clawd' : 'Ajustes de Clawd', show: false,
+    backgroundColor: '#1c1a18', title: page === 'tutorial' ? 'Bienvenido a Pal' : 'Ajustes de Pal', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload-ui.js'), contextIsolation: true, nodeIntegration: false },
   });
   uiWin.loadFile(path.join(__dirname, 'renderer', file));
@@ -1014,7 +1014,7 @@ function setupUiIpc() {
     sendCommand({ say: '¡Listo! Pasa el ratón por encima de mí para ver el panel 🦀' });
     return true;
   });
-  // El tutorial le pide a Clawd que enseñe una animación (solo nombres sencillos: "thinking", "song:funk", "x:summary"…)
+  // El tutorial le pide a Pal que enseñe una animación (solo nombres sencillos: "thinking", "song:funk", "x:summary"…)
   ipcMain.handle('ui:preview', (_e, a) => {
     a = String(a || '');
     if (!/^[a-z]{1,16}(:[a-z0-9-]{1,40})?$/.test(a) || !win || win.isDestroyed()) return false;
@@ -1029,13 +1029,13 @@ function setupUiIpc() {
 
 function setupTray() {
   tray = new Tray(trayIcon());
-  tray.setToolTip('Clawd Flotante');
+  tray.setToolTip('Pixel Pal: Desktop Pet');
   tray.on('click', toggleVisible);
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Mostrar / ocultar a Clawd   (Ctrl+Alt+C)', click: toggleVisible },
+    { label: 'Mostrar / ocultar a Pal   (Ctrl+Alt+C)', click: toggleVisible },
     { label: 'Ajustes…', click: () => openUi('settings') },
     { label: 'Ver el tutorial', click: () => openUi('tutorial') },
-    { label: 'Hablar con Clawd   (Ctrl+Alt+Espacio)', click: openTalk },
+    { label: 'Hablar con Pal   (Ctrl+Alt+Espacio)', click: openTalk },
     { label: 'Tienda: personajes y accesorios', click: openShop },
     { label: 'Volver a la esquina', click: () => { anchor = defaultAnchor(); applyLayout(); saveConfig({ anchor, pos: null }); } },
     { type: 'separator' },
@@ -1075,6 +1075,6 @@ if (process.argv.includes('--cleanup')) {
     // Primera vez: tutorial de bienvenida
     if (!config.onboarded) setTimeout(() => openUi('tutorial'), 1200);
   });
-  // Cerrar el tutorial o los ajustes no cierra Clawd
+  // Cerrar el tutorial o los ajustes no cierra Pal
   app.on('window-all-closed', () => { if (!win || win.isDestroyed()) app.quit(); });
 }

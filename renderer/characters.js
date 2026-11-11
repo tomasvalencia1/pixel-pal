@@ -38,7 +38,7 @@ const Characters = (() => {
       if (own) return own;
     }
     const t = originalPick(key, vars);
-    return skin && t ? t.replace(/🦀/g, emojiOf(skin.id)).replace(/Mini Clawds/g, `Mini ${skin.id[0].toUpperCase()}${skin.id.slice(1)}s`) : t;
+    return skin && t ? t.replace(/🦀/g, emojiOf(skin.id)).replace(/Mini Pals/g, `Mini ${skin.id[0].toUpperCase()}${skin.id.slice(1)}s`) : t;
   };
 
   // ---------- easter eggs ----------
@@ -71,7 +71,7 @@ const Characters = (() => {
   });
   function egg() {
     if (skin && skin.egg) return skin.egg(ctx);
-    // Clawd también tiene el suyo: lluvia de corazones y saltito
+    // Pal también tiene el suyo: lluvia de corazones y saltito
     ClawdSprite.trigger('love');
     ctx.sound('done');
     ctx.say('🦀 ¡Clic, clic, clic! Me haces cosquillas en las pinzas 💕');

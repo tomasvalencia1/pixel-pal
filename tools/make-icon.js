@@ -1,4 +1,4 @@
-// Genera build/icon.png (256 x 256) con el Clawd verde azulado en pixel art. Uso: node tools/make-icon.js
+// Genera build/icon.png (256 x 256) con el Pal verde azulado en pixel art. Uso: node tools/make-icon.js
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');

@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
-  <title>Bienvenido a Clawd</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' file:">
+  <title>Bienvenido a Pal</title>
   <link rel="stylesheet" href="ui.css">
   <style>
     main { display: flex; gap: 24px; align-items: flex-start; padding: 22px 26px; }
@@ -19,6 +19,8 @@
     .dots { flex: 1; display: flex; gap: 6px; justify-content: center; }
     .dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); cursor: pointer; }
     .dots i.on { background: var(--accent); width: 20px; border-radius: 4px; }
+    body.wide .stage { display: none; }
+    #tutvideo { display: block; width: 100%; max-height: 340px; border-radius: 14px; background: #000; border: 1px solid var(--line); margin-top: 8px; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
     .grid2 .card { margin: 0; padding: 9px 11px; font-size: 12.5px; }
     .grid2 .card b { display: block; margin-bottom: 2px; font-size: 13px; }
@@ -27,7 +29,7 @@
 </head>
 <body>
   <header>
-    <h1>🦀 Bienvenido a Clawd Flotante</h1>
+    <h1>🦀 Bienvenido a Pixel Pal</h1>
     <button class="x" id="close" type="button" title="Cerrar (puedes volver a verlo desde Ajustes)">✕</button>
   </header>
   <main>

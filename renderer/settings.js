@@ -21,13 +21,13 @@ function render(s) {
     btn.textContent = 'Reintentar'; btn.className = 'btn';
   } else if (h.installed) {
     pill.className = 'pill ok'; pill.textContent = 'Conectado';
-    info.textContent = 'Clawd recibe lo que hacen tus sesiones de Claude Code.';
+    info.textContent = 'Pal recibe lo que hacen tus sesiones de Claude Code.';
     btn.textContent = 'Desconectar'; btn.className = 'btn danger';
   } else {
     pill.className = h.found ? 'pill no' : 'pill warn';
     pill.textContent = h.found ? 'Sin conectar' : 'No encontrado';
     info.textContent = h.found
-      ? 'Conéctalo para que Clawd muestre el progreso de tus sesiones.'
+      ? 'Conéctalo para que Pal muestre el progreso de tus sesiones.'
       : 'No encontré Claude Code en este PC. Puedes conectarlo igualmente y funcionará cuando lo instales.';
     btn.textContent = 'Conectar'; btn.className = 'btn primary';
   }
@@ -52,7 +52,7 @@ $('hooksBtn').addEventListener('click', async () => {
     if (!r.ok) { setMsg(r.error || 'Algo salió mal.', 'err'); btn.disabled = false; return; }
     render(r.status);
     setMsg(connect
-      ? '¡Conectado! Las sesiones de Claude Code que abras a partir de ahora aparecerán en Clawd (reinicia las que ya estaban abiertas).'
+      ? '¡Conectado! Las sesiones de Claude Code que abras a partir de ahora aparecerán en Pal (reinicia las que ya estaban abiertas).'
       : 'Desconectado. Tu configuración de Claude Code queda como estaba antes.', 'ok');
   } catch (e) {
     setMsg(e.message, 'err');

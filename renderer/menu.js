@@ -1,4 +1,4 @@
-// Panel que aparece al pasar el ratón por Clawd: cabecera con el personaje y el nivel,
+// Panel que aparece al pasar el ratón por Pal: cabecera con el personaje y el nivel,
 // rejilla de botones grandes y la sección "Más". Los botones de siempre (sit, dance, sound, pomobtn…)
 // siguen funcionando igual: aquí solo se añade lo nuevo del diseño.
 const Menu = (() => {

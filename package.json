@@ -1,7 +1,7 @@
 {
   "name": "clawd-flotante",
-  "version": "1.4.1",
-  "description": "Clawd Flotante: una mascota de escritorio que muestra el progreso de tus sesiones de Claude Code",
+  "version": "1.5.0",
+  "description": "Pixel Pal: Desktop Pet — una mascota de escritorio que muestra el progreso de tus sesiones de Claude Code",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -16,7 +16,7 @@
   "author": "Tomás",
   "build": {
     "appId": "com.clawd.flotante.compartido",
-    "productName": "Clawd Flotante",
+    "productName": "Pixel Pal",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -35,7 +35,8 @@
       "package.json"
     ],
     "asarUnpack": [
-      "scripts/**"
+      "scripts/**",
+      "renderer/media/**"
     ],
     "win": {
       "target": [
@@ -54,10 +55,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Clawd Flotante",
+      "shortcutName": "Pixel Pal",
       "runAfterFinish": true,
       "include": "build/installer.nsh",
-      "artifactName": "Clawd-Flotante-Setup-${version}.exe",
+      "artifactName": "Pixel-Pal-Setup-${version}.exe",
       "deleteAppDataOnUninstall": false
     }
   },
