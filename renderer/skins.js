@@ -28,6 +28,11 @@ const Skins = (() => {
   }
 
   const SK = {
+    // 🦀 Clawd naranja: el Clawd original (mismo cuerpo, colores clásicos y sin antena)
+    naranja: {
+      palette: { body: '#D97757', shade: '#B85C3E', light: '#EC9C80', dark: '#7A3A28', blush: '#F6A592' },
+    },
+
     // ==================================================================
     // 🤖 Bolt: robot de cabeza cuadrada con pantalla, cuello, torso y orugas
     // ==================================================================
