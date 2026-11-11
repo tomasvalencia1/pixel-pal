@@ -412,8 +412,28 @@ const Boost = (() => {
     else if (cmd === 'hat') window.clawd.openShop();
   }
 
+  // ---------- para hablar con Clawd (talk.js) ----------
+  function remindAt(at, text) {
+    if (!loaded || !(at > Date.now()) || data.reminders.length >= 20) return false;
+    data.reminders.push({ id: `r${Date.now()}`, at, text: String(text || '').trim().slice(0, 80) || 'Lo que me pediste' });
+    save();
+    renderReminders();
+    return true;
+  }
+  function clearReminders() { const n = data.reminders.length; data.reminders = []; save(); renderReminders(); return n; }
+  function info() {
+    const lvl = levelOf(data.xp);
+    return {
+      level: lvl, xp: data.xp - xpAt(lvl), next: xpAt(lvl + 1) - xpAt(lvl), streak: streakNow(), best: data.streak.best || 0,
+      ach: data.ach.length, achTotal: ACH.length, tasks: tot('task'), pomosToday: data.todayPomos.date === today() ? data.todayPomos.n : 0,
+      pomo: pomo.mode, pomoLeft: Math.max(0, pomo.until - Date.now()),
+      reminders: [...data.reminders].sort((a, b) => a.at - b.at).map(r => ({ at: r.at, text: r.text })),
+    };
+  }
+
   return {
-    award, want, caption, preview,
+    award, want, caption, preview, remindAt, clearReminders, info, showAchievements,
+    pomo: action => { if (action === 'start') { if (pomo.mode !== 'focus') startFocus(); } else if (pomo.mode !== 'off') stopPomo(false); },
     focusing: () => pomo.mode === 'focus',
   };
 })();

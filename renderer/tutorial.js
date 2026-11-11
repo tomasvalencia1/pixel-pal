@@ -125,6 +125,22 @@ const STEPS = [
       </div>`,
   },
   {
+    title: 'Háblame 💬',
+    anim: [['wave', 'Te escucho'], ['thinking', 'Pensando…'], ['check', '¡Apuntado!']],
+    html: `
+      <p>Pulsa <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Espacio</kbd> (o «💬 Hablar» en el panel) y escríbeme, o pulsa 🎤 y dímelo en voz alta.</p>
+      <div class="grid2">
+        <div class="card"><b>⏰ Recordatorios</b>«Recuérdame llamar a mamá en 10 minutos», «avísame a las 5 de la tarde», «mañana a las 8…»</div>
+        <div class="card"><b>🍅 Enfoque</b>«Empieza un pomodoro», «para el pomodoro».</div>
+        <div class="card"><b>🛍️ Ropa y personaje</b>«Ponte la gorra», «quítate todo», «conviértete en dragón».</div>
+        <div class="card"><b>👀 Claude Code</b>«¿Cómo va Claude?», «¿qué nivel tengo?», «¿qué suena?»</div>
+      </div>
+      <div class="tip">Todo eso funciona sin internet y gratis. Si además pones una clave de Anthropic en «🧠 Cerebro de Haiku» (clic derecho), puedo charlar de cualquier cosa.</div>
+      <div class="tries">
+        <button class="btn sm" data-try="t:recuerdame-estirarme-en-1-minuto" type="button">Probar: recordatorio en 1 min</button>
+      </div>`,
+  },
+  {
     title: 'Elige tu personaje 🛍️',
     anim: [['wave', 'Clawd', 'clawd'], ['wave', 'Bolt, el robot', 'bolt'], ['wave', 'Miso, el gatito', 'miso'], ['wave', 'Nube, el fantasma', 'nube'], ['wave', 'Rin, la rana', 'rin'], ['wave', 'Chispa, el dragón', 'chispa']],
     html: `

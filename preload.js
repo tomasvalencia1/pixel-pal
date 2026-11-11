@@ -30,5 +30,10 @@ contextBridge.exposeInMainWorld('clawd', {
   // 🛍️ personaje y accesorios
   setOutfit: p => ipcRenderer.send('outfit-set', p && typeof p === 'object' ? p : {}),
   openShop: () => ipcRenderer.send('shop-open'),
+  // 💬 hablar con Clawd
+  talkAsk: (text, ctx) => ipcRenderer.invoke('talk-ask', String(text || ''), String(ctx || '')),
+  talkStatus: () => ipcRenderer.invoke('talk-status'),
+  listen: () => ipcRenderer.invoke('talk-listen'),
+  openBrain: () => ipcRenderer.send('brain-open'),
   openUi: page => ipcRenderer.invoke('ui:open', page),
 });

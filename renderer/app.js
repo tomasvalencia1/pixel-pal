@@ -718,7 +718,8 @@ window.clawd.onLayout(l => {
 function updatePanel() {
   // en "choca esos cinco", "mimos" o si Clawd te está preguntando algo, el panel no estorba
   const hoverGame = (Play.cur && Play.cur.def.hover) || Speech.asking();
-  const show = pinned || ((hoverClawd && !hoverGame || hoverPanel) && !(down && down.moved));
+  // con la conversación abierta el panel no aparece
+  const show = !(window.Talk && Talk.isOpen()) && (pinned || ((hoverClawd && !hoverGame || hoverPanel) && !(down && down.moved)));
   pinIcon.classList.toggle('on', pinned);
   clearTimeout(hideTimer);
   if (show) { panel.classList.remove('hidden'); document.body.classList.add('panel-open'); }
@@ -742,7 +743,8 @@ function hitTest(x, y, inside = true) {
   const onClawd = !!(el && el.closest('#clawd')) && onClawdPixel(x, y);
   const onPanel = !!(el && el.closest('#panel')) && panelOpen;
   const onBtn = !!(el && el.closest('.bubble-btn'));
-  const hit = onClawd || onPanel || onBtn;
+  const onTalk = !!(el && el.closest('#talk')) && !!window.Talk && Talk.isOpen();
+  const hit = onClawd || onPanel || onBtn || onTalk;
   if (!down && hit === ignoring) { ignoring = !hit; window.clawd.setIgnore(!hit); }
   if (onClawd !== hoverClawd || onPanel !== hoverPanel) {
     hoverClawd = onClawd;
@@ -831,7 +833,7 @@ window.clawd.onCommand(c => {
       const k = c.preview.slice(5);
       forcedSong = k === 'off' ? null : k;
       forcedUntil = Date.now() + 20000;
-    } else if (c.preview.startsWith('c:')) {         // personajes: lo gestiona characters.js
+    } else if (c.preview.startsWith('c:') || c.preview.startsWith('t:')) {   // personajes (characters.js) y hablar (talk.js)
     } else if (c.preview.startsWith('b:')) {         // pomodoro, niveles, recordatorios: /preview?a=b:pomo
       if (window.Boost) Boost.preview(c.preview.slice(2));
     } else if (c.preview.startsWith('x:')) {         // probar un extra de Windows: /preview?a=x:summary

@@ -653,6 +653,56 @@ function toggleVisible() {
 
 // ---------- 🛍️ tienda: personaje y accesorios (todo gratis; algunos sombreros por nivel) ----------
 const CATALOG = require('./renderer/catalog.js');
+
+// ---------- 💬 hablar con Clawd: micrófono (reconocimiento de voz de Windows) y cerebro de Haiku opcional ----------
+const { createBrain } = require('./brain');
+const brain = createBrain({ dir: DIR, catalog: CATALOG });
+let brainWin = null;
+function openTalk() {
+  if (!win || win.isDestroyed()) return;
+  if (!win.isVisible()) { win.showInactive(); keepOnTop(); }
+  sendCommand('talk-open');
+}
+function openBrain() {
+  if (brainWin && !brainWin.isDestroyed()) { brainWin.show(); brainWin.focus(); return; }
+  brainWin = new BrowserWindow({
+    width: 520, height: 600, minWidth: 440, minHeight: 420, center: true, frame: false, resizable: true,
+    backgroundColor: '#1c1a18', title: 'Cerebro de Haiku', show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload-brain.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  brainWin.loadFile(path.join(__dirname, 'renderer', 'brain.html'));
+  brainWin.once('ready-to-show', () => { brainWin.show(); brainWin.focus(); });
+  brainWin.on('closed', () => { brainWin = null; });
+}
+// Escucha una frase con scripts/listen.ps1 (solo mientras pulsas el micrófono; se cierra al terminar)
+let listenProc = null;
+function listenOnce() {
+  if (listenProc) return Promise.resolve({ ok: false, error: 'busy' });
+  const base = typeof UNPACKED !== 'undefined' ? UNPACKED : __dirname;
+  return new Promise(resolve => {
+    let out = '';
+    let p;
+    try {
+      p = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(base, 'scripts', 'listen.ps1')], { windowsHide: true });
+    } catch { resolve({ ok: false, error: 'fail' }); return; }
+    listenProc = p;
+    const done = r => {
+      if (listenProc !== p) return;
+      listenProc = null;
+      clearTimeout(tm);
+      try { p.kill(); } catch { /* ya terminó */ }
+      resolve({ ok: !!r.ok, text: r.ok ? String(r.text || '').slice(0, 300) : undefined, error: r.ok ? undefined : String(r.error || 'fail') });
+    };
+    const tm = setTimeout(() => done({ ok: false, error: 'silence' }), 25000);
+    p.stdout.setEncoding('utf8');
+    p.stdout.on('data', d => {
+      out += d;
+      for (const line of out.split(/\r?\n/)) { try { const j = JSON.parse(line); if (j && 'ok' in j) return done(j); } catch { /* línea a medias */ } }
+    });
+    p.on('error', () => done({ ok: false, error: 'fail' }));
+    p.on('exit', () => setTimeout(() => done({ ok: false, error: 'fail' }), 100));
+  });
+}
 let shopWin = null;
 function currentLevel() { const p = readJson(path.join(DIR, 'progress.json'), null); return CATALOG.levelOf(p && p.xp); }
 function getOutfit() { return CATALOG.clean(config.outfit, currentLevel()); }
@@ -681,6 +731,18 @@ function setupIpc() {
   ipcMain.handle('shop-get', () => ({ outfit: getOutfit(), level: currentLevel() }));
   ipcMain.handle('shop-set', (_e, p) => ({ outfit: setOutfit(p), level: currentLevel() }));
   ipcMain.on('shop-close', () => { if (shopWin && !shopWin.isDestroyed()) shopWin.close(); });
+  // 💬 hablar con Clawd
+  ipcMain.handle('talk-ask', (_e, text, ctx) => brain.ask(String(text || ''), String(ctx || '')));
+  ipcMain.handle('talk-status', () => brain.status());
+  ipcMain.handle('talk-listen', () => listenOnce());
+  ipcMain.on('talk-open', () => openTalk());
+  ipcMain.on('brain-open', () => openBrain());
+  ipcMain.handle('brain-status', () => brain.status());
+  ipcMain.handle('brain-set-key', (_e, k) => { const r = brain.setKey(k); sendCommand('brain-changed'); return { ...r, status: brain.status() }; });
+  ipcMain.handle('brain-clear-key', () => { brain.clearKey(); sendCommand('brain-changed'); return brain.status(); });
+  ipcMain.handle('brain-set-limit', (_e, n) => { const ok = brain.setLimit(n); sendCommand('brain-changed'); return { ok, status: brain.status() }; });
+  ipcMain.on('brain-console', () => require('electron').shell.openExternal('https://platform.claude.com/'));
+  ipcMain.on('brain-close', () => { if (brainWin && !brainWin.isDestroyed()) brainWin.close(); });
   ipcMain.on('set-ignore', (_e, ignore) => { if (win) win.setIgnoreMouseEvents(!!ignore, { forward: true }); });
 
   let drag = null;
@@ -770,6 +832,8 @@ function setupIpc() {
       { label: '⚙️ Ajustes…', click: () => openUi('settings') },
       { label: '📖 Ver el tutorial', click: () => openUi('tutorial') },
       { type: 'separator' },
+      { label: '💬 Hablar con Clawd   (Ctrl+Alt+Espacio)', click: openTalk },
+      { label: '🧠 Cerebro de Haiku (opcional)…', click: openBrain },
       { label: '🛍️ Tienda: personajes y accesorios', click: openShop },
       { label: 'Fijar / soltar panel', click: () => send('toggle-pin') },
       { label: 'Ver animaciones (demo)', click: () => send('demo') },
@@ -938,7 +1002,7 @@ function setupUiIpc() {
   // El tutorial le pide a Clawd que enseñe una animación (solo nombres sencillos: "thinking", "song:funk", "x:summary"…)
   ipcMain.handle('ui:preview', (_e, a) => {
     a = String(a || '');
-    if (!/^[a-z]{2,16}(:[a-z0-9-]{1,16})?$/.test(a) || !win || win.isDestroyed()) return false;
+    if (!/^[a-z]{1,16}(:[a-z0-9-]{1,40})?$/.test(a) || !win || win.isDestroyed()) return false;
     if (!win.isVisible()) { win.showInactive(); keepOnTop(); }
     win.webContents.send('command', a === 'demo' ? 'demo' : { preview: a });
     return true;
@@ -956,6 +1020,7 @@ function setupTray() {
     { label: 'Mostrar / ocultar a Clawd   (Ctrl+Alt+C)', click: toggleVisible },
     { label: 'Ajustes…', click: () => openUi('settings') },
     { label: 'Ver el tutorial', click: () => openUi('tutorial') },
+    { label: 'Hablar con Clawd   (Ctrl+Alt+Espacio)', click: openTalk },
     { label: 'Tienda: personajes y accesorios', click: openShop },
     { label: 'Volver a la esquina', click: () => { anchor = defaultAnchor(); applyLayout(); saveConfig({ anchor, pos: null }); } },
     { type: 'separator' },
@@ -987,6 +1052,7 @@ if (process.argv.includes('--cleanup')) {
     setupTray();
     // Atajos globales
     try { globalShortcut.register('CommandOrControl+Alt+C', toggleVisible); } catch { /* atajo ocupado */ }
+    try { globalShortcut.register('CommandOrControl+Alt+Space', openTalk); } catch { /* atajo ocupado */ }
     setInterval(pruneStale, 60 * 1000);
     startSystemWatch();
     // Si ya estaba conectado pero cambió el puerto o el token, se reconecta solo

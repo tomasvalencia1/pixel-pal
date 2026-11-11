@@ -273,3 +273,39 @@ body.flip-v #panel.hidden { transform: translateY(-6px); }
 .rem-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rem-item button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; border-radius: 4px; }
 .rem-item button:hover { color: var(--text); background: rgba(255, 255, 255, 0.1); }
+
+/* ---------- 💬 hablar con Clawd ---------- */
+.opts { flex-wrap: wrap; }
+#talk {
+  position: absolute; right: 8px; bottom: 216px; width: 320px; height: 272px;
+  display: flex; flex-direction: column; border-radius: 14px; background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); z-index: 3; user-select: text;
+}
+body.flip-h #talk { right: auto; left: 8px; }
+body.flip-v #talk { bottom: auto; top: 220px; }
+body.talk-open #panel { display: none; }
+body.talk-open #bubble:not(.ask), body.talk-open #caption { visibility: hidden; }
+.talk-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+.talk-title { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.talk-brain { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.talk-hbtn { font: inherit; color: var(--muted); background: none; border: 0; border-radius: 6px; width: 24px; height: 24px; cursor: pointer; }
+.talk-hbtn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+.talk-log { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.talk-log::-webkit-scrollbar { width: 6px; }
+.talk-log::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 3px; }
+.tmsg { max-width: 88%; padding: 6px 10px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.4; }
+.tmsg.me { align-self: flex-end; background: var(--orange); color: #fff; border-bottom-right-radius: 4px; }
+.tmsg.bot { align-self: flex-start; background: rgba(255, 255, 255, 0.08); border-bottom-left-radius: 4px; }
+.tmsg.err { background: rgba(229, 72, 77, 0.15); color: #ffc2c4; }
+.tmsg.typing::after { content: "• • •"; color: var(--muted); animation: pulse 1s infinite; }
+.tline { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.trow { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.tbtn { font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 8px; padding: 2px 9px; cursor: pointer; margin-top: 4px; }
+.tbtn:hover { background: rgba(255, 255, 255, 0.18); }
+.talk-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.talk-form input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; padding: 6px 10px; outline: none; }
+.talk-form input:focus { border-color: var(--orange); }
+.talk-mic, .talk-send { font: inherit; border: 0; border-radius: 10px; width: 34px; cursor: pointer; }
+.talk-mic { background: rgba(255, 255, 255, 0.1); }
+.talk-mic.on { background: rgba(229, 72, 77, 0.3); animation: pulse 1s infinite; }
+.talk-send { color: #fff; background: var(--orange); }

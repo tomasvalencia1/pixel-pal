@@ -26,6 +26,7 @@
       <button id="tutorialbtn" class="chip" type="button" title="Ver el tutorial">📖 Tutorial</button>
     </div>
     <div class="opts">
+      <button id="talkbtn" class="chip" type="button" title="Hablar con Clawd (Ctrl+Alt+Espacio)">💬 Hablar</button>
       <button id="pomobtn" class="chip" type="button" title="Modo enfoque: 25 min de trabajo y 5 de descanso">🍅 Enfoque</button>
       <button id="rembtn" class="chip" type="button" title="Recordatorio rápido">⏰ Recordar</button>
       <button id="hatbtn" class="chip" type="button" title="Personajes y accesorios (todo gratis)">🛍️ Tienda</button>
@@ -42,6 +43,21 @@
     <div id="boost" class="boost" title="Ver tus logros"></div>
     <div id="nowplaying" class="hidden"></div>
     <div id="cards"></div>
+  </div>
+
+  <div id="talk" class="hit hidden">
+    <div class="talk-head">
+      <span class="talk-title" id="talkTitle">💬 Habla con Clawd</span>
+      <span class="talk-brain" id="talkBrain"></span>
+      <button id="talkKey" class="talk-hbtn" type="button" title="Cerebro de Haiku (opcional)">🧠</button>
+      <button id="talkClose" class="talk-hbtn" type="button" title="Cerrar (Esc)">✕</button>
+    </div>
+    <div id="talkLog" class="talk-log"></div>
+    <form id="talkForm" class="talk-form" autocomplete="off">
+      <button type="button" id="talkMic" class="talk-mic" title="Hablar por el micrófono">🎤</button>
+      <input id="talkInput" type="text" maxlength="300" placeholder="Escribe o pulsa 🎤…">
+      <button type="submit" class="talk-send" title="Enviar">➤</button>
+    </form>
   </div>
 
   <div id="stage">
@@ -61,5 +77,6 @@
   <script src="extras.js"></script>
   <script src="boost.js"></script>
   <script src="characters.js"></script>
+  <script src="talk.js"></script>
 </body>
 </html>
