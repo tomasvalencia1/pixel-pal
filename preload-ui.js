@@ -1,5 +1,7 @@
 // Puente para las ventanas de ajustes y tutorial
 const { contextBridge, ipcRenderer } = require('electron');
+// Edición (personal | shared) que manda el proceso principal: decide colores y personajes
+contextBridge.exposeInMainWorld('PAL_EDITION', (process.argv.find(a => a.startsWith('--pal-edition=')) || '--pal-edition=shared').slice(14));
 
 contextBridge.exposeInMainWorld('ui', {
   status: () => ipcRenderer.invoke('ui:status'),

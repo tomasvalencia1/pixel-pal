@@ -1,4 +1,6 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+// Edición (personal | shared) que manda el proceso principal: decide colores y personajes
+contextBridge.exposeInMainWorld('PAL_EDITION', (process.argv.find(a => a.startsWith('--pal-edition=')) || '--pal-edition=shared').slice(14));
 
 contextBridge.exposeInMainWorld('clawd', {
   onState: cb => ipcRenderer.on('state', (_e, s) => cb(s)),

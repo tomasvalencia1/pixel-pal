@@ -87,7 +87,7 @@ const Talk = (() => {
   }
 
   // ---------- catálogo: cómo se llama cada cosa al hablar ----------
-  const SKIN_WORDS = [['naranja', /\b(naranja|original|clasico)\b/], ['clawd', /\b(pal|clawd|cangrejo)\b/], ['bolt', /\b(bolt|robot)\b/], ['miso', /\b(miso|gato|gatito|michi|minino)\b/], ['nube', /\b(nube|fantasma|fantasmita)\b/], ['rin', /\b(rin|rana|ranita|sapo)\b/], ['chispa', /\b(chispa|dragon|dragoncito)\b/]];
+  const SKIN_WORDS = [['turquesa', /\b(turquesa|verde|antena)\b/], ['naranja', /\b(naranja|original|clasico)\b/], ['clawd', /\b(pal|clawd|cangrejo)\b/], ['bolt', /\b(bolt|robot)\b/], ['miso', /\b(miso|gato|gatito|michi|minino)\b/], ['nube', /\b(nube|fantasma|fantasmita)\b/], ['rin', /\b(rin|rana|ranita|sapo)\b/], ['chispa', /\b(chispa|dragon|dragoncito)\b/]];
   const WEAR_WORDS = [   // las más largas primero ("corona de flores" antes que "corona")
     ['hat', 'flowers', /corona de flores|flores/], ['hat', 'nightcap', /gorrito de dormir|gorro de dormir|pijama|dormir/], ['hat', 'beanie', /gorro de lana|lana/],
     ['hat', 'party', /gorro de fiesta|fiesta|cumpleanos/], ['hat', 'tophat', /chistera|sombrero de copa/], ['hat', 'crown', /corona/],

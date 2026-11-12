@@ -64,7 +64,7 @@ Cada 12–25 s (o cada 1–2 min si está dormido) Pal hace algo al azar con tu 
 | Lanzar corazón | Te manda un corazón volando |
 | Estirarse | Se estira y bosteza |
 
-Para probar uno: `curl -H "x-clawd-token: $(cat ~/.clawd/token)" "http://127.0.0.1:7777/preview?a=play:chase"` (o `flee`, `stroll`, `wave`,
+Para probar uno: `curl -H "x-clawd-token: $(cat ~/.clawd-flotante/token)" "http://127.0.0.1:7778/preview?a=play:chase"` (o `flee`, `stroll`, `wave`,
 `peekaboo`, `highfive`, `beg`, `watch`, `hop`, `dance`, `kiss`, `stretch`).
 
 ### 🪑 Quédate sentado
@@ -122,7 +122,7 @@ las pinzas que la animación deja libres, para no romper la laptop, el libro o e
 
 Para ver una combinación sin poner la canción: `/preview?a=song:funk` (fuerza la canción 20 s)
 y después `/preview?a=editing`. Cada una tiene sus propias frases. Para ver el baile completo:
-`curl -H "x-clawd-token: $(cat ~/.clawd/token)" "http://127.0.0.1:7777/preview?a=funk"` (o `bass`, `gold`, `two`, `burger`, `standing`, `chicago`, `thatswhat`, `dontstop`, `imight`, `billie`, `angine`).
+`curl -H "x-clawd-token: $(cat ~/.clawd-flotante/token)" "http://127.0.0.1:7778/preview?a=funk"` (o `bass`, `gold`, `two`, `burger`, `standing`, `chicago`, `thatswhat`, `dontstop`, `imight`, `billie`, `angine`).
 Se añaden más en `SPECIAL_SONGS` (`renderer/app.js`).
 
 **¿Música o vídeo?** Windows no los distingue. Por defecto baila con apps de música (Spotify,
@@ -155,7 +155,7 @@ intensidad de tecleo, la batería, el portapapeles, si la app de Claude está ab
 En el clic derecho puedes cambiar lo que pregunta: **Subirse a ventanas** y **Pantalla completa**
 (Preguntarme / Siempre / Nunca), y **Olvidar los modos por app**.
 
-Para probar cada cosa: `curl -H "x-clawd-token: $(cat ~/.clawd/token)" "http://127.0.0.1:7777/preview?a=x:summary"` (también `x:back`, `x:photo`,
+Para probar cada cosa: `curl -H "x-clawd-token: $(cat ~/.clawd-flotante/token)" "http://127.0.0.1:7778/preview?a=x:summary"` (también `x:back`, `x:photo`,
 `x:dev:push`, `x:dev:testFail`, `x:dev:limit`, `x:bat:15`, `x:charge`, `x:costume:santa`, `x:night`,
 `x:wear:code`, `x:ride`, `x:go`, `x:fall`, `x:hide`, `x:mode`, `x:sess`).
 
@@ -171,7 +171,7 @@ y en la terminal muestra algo como `🦀 · sesión 77% libre · semana 59% libr
 ⚠️ La línea de estado está documentada para la terminal (CLI). No está documentado si la pestaña Code
 de la app de escritorio la ejecuta. Si nunca ves el uso en la burbuja, abre una sesión con `claude`
 en la terminal y el dato llegará. Mientras no haya dato, Pal simplemente no muestra la parte del uso.
-Para ver cómo queda: `curl -H "x-clawd-token: $(cat ~/.clawd/token)" "http://127.0.0.1:7777/preview?a=usage"` (con datos de ejemplo si aún no hay reales).
+Para ver cómo queda: `curl -H "x-clawd-token: $(cat ~/.clawd-flotante/token)" "http://127.0.0.1:7778/preview?a=usage"` (con datos de ejemplo si aún no hay reales).
 
 ### Número de sesiones
 Ya no hay círculo rojo encima de Pal. Cuando hay más de una sesión activa, la leyenda
@@ -194,7 +194,7 @@ Si está cerca del borde izquierdo, salen **hacia la derecha**. Pal no se mueve 
 Para ver todas las animaciones seguidas: clic derecho → **Ver animaciones (demo)**.
 
 Para probar una en concreto con la app abierta:
-`curl -H "x-clawd-token: $(cat ~/.clawd/token)" "http://127.0.0.1:7777/preview?a=editing"`. Valores posibles: `idle`, `thinking`, `editing`,
+`curl -H "x-clawd-token: $(cat ~/.clawd-flotante/token)" "http://127.0.0.1:7778/preview?a=editing"`. Valores posibles: `idle`, `thinking`, `editing`,
 `reading`, `searching`, `terminal`, `web`, `agent`, `planning`, `tinkering`, `waiting`,
 `celebrate`, `sleeping`, `check`, `hello`, `poke`.
 
@@ -221,6 +221,21 @@ npm run uninstall-hooks
 ```
 
 Solo quita los hooks de Pal y deja el resto de tu configuración intacta.
+
+## Ediciones
+
+El mismo código sirve para dos ediciones, que se eligen con la variable `PAL_EDITION` (ver `edition.js`):
+
+| | Compartida (por defecto) | Personal (`PAL_EDITION=personal`) |
+|---|---|---|
+| Aspecto | Verde azulado con antena (el naranja es un personaje más) | Naranja (el verde azulado es un personaje más) |
+| Datos | `~/.clawd-flotante` | `~/.clawd` |
+| Puerto | 7778 | 7777 |
+| Conexión con Claude Code | curl (desde Ajustes) | hooks de Node (`hooks/clawd-hook.js`) o curl |
+| Tutorial al abrir por primera vez | Sí | No |
+
+Cada edición solo toca **sus** comandos en `~/.claude/settings.json` (los reconoce por su clave secreta o su puerto),
+así que las dos pueden estar instaladas a la vez sin pisarse.
 
 ## Cómo funciona
 

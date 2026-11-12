@@ -32,6 +32,11 @@ const Skins = (() => {
     naranja: {
       palette: { body: '#D97757', shade: '#B85C3E', light: '#EC9C80', dark: '#7A3A28', blush: '#F6A592' },
     },
+    // 🩵 Pal turquesa: el diseño de la versión para compartir (verde azulado y con antena), para la edición personal
+    turquesa: {
+      antenna: true,
+      palette: { body: '#3FB8A8', shade: '#2C8F83', light: '#86DDD1', dark: '#1D5E56', blush: '#F6A592' },
+    },
 
     // ==================================================================
     // 🤖 Bolt: robot de cabeza cuadrada con pantalla, cuello, torso y orugas

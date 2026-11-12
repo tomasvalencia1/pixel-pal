@@ -1,19 +1,23 @@
 // Pixel Pal — proceso principal de Electron
 // - Ventana transparente, sin bordes y SIEMPRE en primer plano
-// - Servidor local (127.0.0.1:7777) que recibe los eventos de los hooks de Claude Code
+// - Servidor local (127.0.0.1, puerto 7777 en la edición personal y 7778 en la compartida) que recibe los eventos de los hooks de Claude Code
 // - Estado de todas las sesiones y sus tareas
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, Notification, clipboard, globalShortcut } = require('electron');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const hooks = require('./hooks');
+// Edición (personal o compartida): carpeta de datos, puerto, colores… Va antes que hooks.js
+const ED = require('./edition');
+const hooks = require('./hooks').create();
+// Las ventanas reciben la edición para dibujar a Pal con sus colores
+const EDITION_ARG = [`--pal-edition=${ED.name}`];
 
 // Carpeta de datos (CLAWD_HOME permite probar sin tocar una instalación real)
-const DIR = process.env.CLAWD_HOME || path.join(os.homedir(), '.clawd-flotante');
+const DIR = process.env.CLAWD_HOME || ED.dataDir;
 fs.mkdirSync(DIR, { recursive: true });
 // Los datos internos de Electron van dentro de la misma carpeta (también aísla la "instancia única")
-app.setPath('userData', path.join(DIR, 'app-data'));
+if (ED.ownUserData || process.env.CLAWD_HOME) app.setPath('userData', path.join(DIR, 'app-data'));
 // Archivos que no pueden ir dentro del paquete .asar (PowerShell necesita leerlos del disco)
 const UNPACKED = __dirname.replace(/app\.asar$/, 'app.asar.unpacked');
 const STATE_FILE = path.join(DIR, 'state.json');
@@ -25,7 +29,7 @@ const WIN_H = 500;
 const STALE_MS = 30 * 60 * 1000;
 
 // ---------- clave secreta compartida con el hook ----------
-// Sin ella, cualquier página web o programa podría hablar con Pal por 127.0.0.1:7777.
+// Sin ella, cualquier página web o programa podría hablar con Pal por 127.0.0.1 (puerto local).
 const TOKEN_FILE = path.join(DIR, 'token');
 function ensureToken() {
   try { return fs.readFileSync(TOKEN_FILE, 'utf8').trim(); } catch { /* no existe */ }
@@ -52,7 +56,7 @@ function writeJson(file, data) {
 let config = readJson(CONFIG_FILE, {});
 function saveConfig(patch) { config = { ...config, ...patch }; writeJson(CONFIG_FILE, config); }
 // Puerto del servidor local (CLAWD_PORT para pruebas)
-const PORT = Number(process.env.CLAWD_PORT) || Number(config.port) || 7777;
+const PORT = Number(process.env.CLAWD_PORT) || Number(config.port) || ED.port;
 
 // Registro de eventos para depurar: desactivado salvo que config.json tenga "debugLog": true.
 // Nunca guarda lo que el usuario escribe ni las salidas completas de las herramientas.
@@ -482,6 +486,16 @@ function startServer() {
       });
       return;
     }
+    // Uso del plan ya resumido (lo envía hooks/clawd-statusline.js de la edición personal)
+    if (req.method === 'POST' && req.url === '/usage') {
+      let body = '';
+      req.on('data', c => { body += c; if (body.length > 1e5) req.destroy(); });
+      req.on('end', () => {
+        try { setUsage(JSON.parse(body.replace(/^\uFEFF/, ''))); } catch { /* json roto */ }
+        res.writeHead(204); res.end();
+      });
+      return;
+    }
     if (req.method === 'POST' && req.url === '/event') {
       let body = '';
       req.on('data', c => { body += c; if (body.length > 5e6) req.destroy(); });
@@ -520,8 +534,10 @@ function trayIcon() {
     '................',
     '................',
   ];
-  // diseño propio de esta copia: turquesa con antena (colores en orden BGR)
-  const colors = { O: [0xA5, 0xB3, 0x4F], S: [0x80, 0x8C, 0x3A], K: [0x17, 0x1A, 0x1F], Y: [0x4E, 0xC1, 0xF2] };
+  // colores de la edición (orden BGR); la personal no lleva antena
+  const colors = ED.tray.colors;
+  if (!ED.tray.antenna) rows.splice(0, 3, '................', '................', '................');
+  if (!ED.tray.antenna) rows[3] = '...OOOOOOOOOO...';
   const buf = Buffer.alloc(16 * 16 * 4);
   rows.forEach((row, y) => [...row].forEach((ch, x) => {
     const c = colors[ch];
@@ -614,7 +630,7 @@ function createWindow() {
     focusable: false,          // nunca le roba el foco a tu ventana activa
     alwaysOnTop: true,
     show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, autoplayPolicy: 'no-user-gesture-required' },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, additionalArguments: EDITION_ARG, autoplayPolicy: 'no-user-gesture-required' },
   });
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -668,7 +684,7 @@ function openBrain() {
   brainWin = new BrowserWindow({
     width: 520, height: 600, minWidth: 440, minHeight: 420, center: true, frame: false, resizable: true,
     backgroundColor: '#1c1a18', title: 'Cerebro de Haiku', show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload-brain.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, 'preload-brain.js'), contextIsolation: true, nodeIntegration: false, additionalArguments: EDITION_ARG },
   });
   brainWin.loadFile(path.join(__dirname, 'renderer', 'brain.html'));
   brainWin.once('ready-to-show', () => { brainWin.show(); brainWin.focus(); });
@@ -718,7 +734,7 @@ function openShop() {
   shopWin = new BrowserWindow({
     width: 640, height: 520, minWidth: 560, minHeight: 440, center: true, frame: false, resizable: true,
     backgroundColor: '#1c1a18', title: 'Tienda de Pal', show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload-shop.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, 'preload-shop.js'), contextIsolation: true, nodeIntegration: false, additionalArguments: EDITION_ARG },
   });
   shopWin.loadFile(path.join(__dirname, 'renderer', 'shop.html'));
   shopWin.once('ready-to-show', () => { shopWin.show(); shopWin.focus(); });
@@ -907,7 +923,7 @@ function openSessionsWindow(file) {
   sessWin = new BrowserWindow({
     width: W, height: H, x: Math.round(x), y: Math.round(y), frame: false, resizable: true, minWidth: 320, minHeight: 300,
     alwaysOnTop: true, backgroundColor: '#1c1a18', title: 'Pal · Sesiones', show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload-sessions.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, 'preload-sessions.js'), contextIsolation: true, nodeIntegration: false, additionalArguments: EDITION_ARG },
   });
   sessWin.setAlwaysOnTop(true, 'floating');
   sessWin.loadFile(path.join(__dirname, 'renderer', 'sessions.html'));
@@ -978,7 +994,7 @@ function openUi(page) {
   uiWin = new BrowserWindow({
     width: W, height: H, minWidth: 480, minHeight: 480, center: true, frame: false, resizable: true,
     backgroundColor: '#1c1a18', title: page === 'tutorial' ? 'Bienvenido a Pal' : 'Ajustes de Pal', show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload-ui.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, 'preload-ui.js'), contextIsolation: true, nodeIntegration: false, additionalArguments: EDITION_ARG },
   });
   uiWin.loadFile(path.join(__dirname, 'renderer', file));
   uiWin.once('ready-to-show', () => { uiWin.show(); uiWin.focus(); });
@@ -990,8 +1006,9 @@ function uiStatus() {
     version: app.getVersion(),
     packaged: app.isPackaged,
     port: PORT,
+    edition: ED.name,
     serverError,
-    hooks: hooks.status(),
+    hooks: hooks.status(PORT, TOKEN),
     autostart: getAutostart(),
     onboarded: !!config.onboarded,
   };
@@ -1004,7 +1021,7 @@ function setupUiIpc() {
     catch (e) { return { ok: false, error: `No pude escribir la configuración de Claude Code: ${e.message}` }; }
   });
   ipcMain.handle('ui:uninstall-hooks', () => {
-    try { hooks.uninstall(); return { ok: true, status: uiStatus() }; }
+    try { hooks.uninstall(PORT, TOKEN); return { ok: true, status: uiStatus() }; }
     catch (e) { return { ok: false, error: e.message }; }
   });
   ipcMain.handle('ui:set-autostart', (_e, on) => { setAutostart(!!on); return uiStatus(); });
@@ -1046,16 +1063,16 @@ function setupTray() {
 // ---------- arranque ----------
 if (process.argv.includes('--cleanup')) {
   // Lo ejecuta el desinstalador: quita la conexión con Claude Code y el arranque con Windows
-  app.setAppUserModelId('com.clawd.flotante.compartido'); // mismo nombre que la entrada de arranque
+  app.setAppUserModelId(ED.appId); // mismo nombre que la entrada de arranque
   app.whenReady().then(() => {
-    try { hooks.uninstall(); } catch { /* nada */ }
+    try { hooks.uninstall(PORT, TOKEN); } catch { /* nada */ }
     try { app.setLoginItemSettings({ openAtLogin: false }); } catch { /* nada */ }
     app.exit(0);
   });
 } else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.setAppUserModelId('com.clawd.flotante.compartido');
+  app.setAppUserModelId(ED.appId);
   // Si se abre otra vez (menú Inicio, acceso directo), se muestra la que ya está abierta
   app.on('second-instance', () => { if (win) { win.showInactive(); keepOnTop(); sendCommand('shown'); } });
   app.whenReady().then(() => {
@@ -1071,9 +1088,9 @@ if (process.argv.includes('--cleanup')) {
     setInterval(pruneStale, 60 * 1000);
     startSystemWatch();
     // Si ya estaba conectado pero cambió el puerto o el token, se reconecta solo
-    try { if (hooks.status().installed && !hooks.upToDate(PORT, TOKEN)) hooks.install(PORT, TOKEN); } catch { /* nada */ }
+    try { if (hooks.status(PORT, TOKEN).installed && !hooks.upToDate(PORT, TOKEN)) hooks.install(PORT, TOKEN); } catch { /* nada */ }
     // Primera vez: tutorial de bienvenida
-    if (!config.onboarded) setTimeout(() => openUi('tutorial'), 1200);
+    if (ED.autoTutorial && !config.onboarded) setTimeout(() => openUi('tutorial'), 1200);
   });
   // Cerrar el tutorial o los ajustes no cierra Pal
   app.on('window-all-closed', () => { if (!win || win.isDestroyed()) app.quit(); });

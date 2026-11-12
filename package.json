@@ -6,12 +6,16 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "start:personal": "set PAL_EDITION=personal&& electron .",
+    "test": "node --test \"tests/unit/*.test.js\" && node --test --test-concurrency=1 \"tests/e2e/*.test.js\"",
+    "test:unit": "node --test \"tests/unit/*.test.js\"",
     "icon": "node tools/make-icon.js",
     "dist": "electron-builder --win nsis"
   },
   "devDependencies": {
     "electron": "^33.4.11",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "playwright-core": "^1.65.0"
   },
   "author": "Tomás",
   "build": {
@@ -23,6 +27,7 @@
     },
     "files": [
       "main.js",
+      "edition.js",
       "hooks.js",
       "preload.js",
       "preload-ui.js",

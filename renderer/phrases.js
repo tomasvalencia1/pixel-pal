@@ -136,6 +136,14 @@ const PHRASES = {
   sitOff: ['¡Libre otra vez! 🦀', '¡A jugar!', '¡Por fin puedo moverme!'],
 };
 
+// Edición personal: frases sobre tus canciones más escuchadas
+if (typeof window !== 'undefined' && window.PAL_EDITION === 'personal') Object.assign(PHRASES, {
+  song_gold: ['✨ ¡24K Magic! Saco las joyas', 'Modo oro activado 💰', 'Bruno Mars otra vez… tienes buen gusto 😎'],
+  mid_gold: ['Brillando más que el oro ✨', 'Lluvia de monedas para todos 💰', 'Fiesta de lujo en tu escritorio 🥂', 'Tu artista más escuchado, por algo será 👑'],
+  mid_imight: ['Mi banda de mini yo está que arde 🥁🎸', 'Guiño y chispa ✨😉', 'Retro, setentero y con estilo', 'Bruno Mars, tu artista número uno 👑', '¿Ves esa chispa? ✨'],
+  song_thatswhat: ['😎 ¡That\'s What I Like! Bruno otra vez', 'Bruno Mars, tu artista favorito, ¡vamos!', 'Chasquidos listos 🫰'],
+});
+
 const Phrases = (() => {
   const last = {};
   function pick(key, vars = {}) {

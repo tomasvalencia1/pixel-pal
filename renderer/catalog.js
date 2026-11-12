@@ -43,6 +43,13 @@ const CATALOG = {
 };
 
 // Nivel a partir de la experiencia (la misma fórmula que boost.js)
+// Edición personal: el Pal base ya es naranja, así que el "otro Pal" es el verde azulado con antena
+{
+  const ed = typeof window !== 'undefined' ? window.PAL_EDITION : (typeof process !== 'undefined' && process.env ? process.env.PAL_EDITION : '');
+  const i = CATALOG.skins.findIndex(x => x.id === 'naranja');
+  if (ed === 'personal' && i >= 0) CATALOG.skins[i] = { id: 'turquesa', name: 'Pal turquesa', emoji: '🩵', desc: 'Verde azulado y con antena: el Pal de la versión para compartir.' };
+}
+
 CATALOG.levelOf = xp => Math.max(1, Math.floor((1 + Math.sqrt(1 + 0.08 * (Number(xp) || 0))) / 2));
 
 // Comprueba y completa un conjunto (personaje + accesorios); lo que no exista o no esté desbloqueado se quita

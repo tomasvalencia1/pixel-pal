@@ -14,9 +14,12 @@ const ClawdSprite = (() => {
   const INTRO = 0.4;
   const OUTRO = 0.35;
 
+  // Edición personal: el Pal naranja de siempre. Compartida: verde azulado con antena.
+  const PERSONAL = typeof window !== 'undefined' && window.PAL_EDITION === 'personal';
   const C = {
-    // Diseño propio de esta versión: verde azulado con antena
-    body: '#3FB8A8', shade: '#2C8F83', light: '#86DDD1', dark: '#1D5E56',
+    ...(PERSONAL
+      ? { body: '#D97757', shade: '#B85C3E', light: '#EC9C80', dark: '#7A3A28' }
+      : { body: '#3FB8A8', shade: '#2C8F83', light: '#86DDD1', dark: '#1D5E56' }),
     eye: '#1F1A17', shine: '#FFFFFF', blush: '#F6A592',
     metal: '#C9CED6', metalDk: '#8E959F', metalLt: '#EEF1F5',
     screen: '#18212B', green: '#5BE37D', greenDk: '#2E8F48',
@@ -538,7 +541,7 @@ const ClawdSprite = (() => {
   // Antena: la bombilla cambia de color según lo que pasa (amarillo normal, violeta pensando, rojo parpadeando si espera permiso)
   const NO_ANTENNA = ['sleeping', 'celebrate', 'web', 'angine', 'chicago'];
   function drawAntenna(P, g, w, special, active) {
-    if (SKIN) return;
+    if (SKIN ? !SKIN.antenna : PERSONAL) return;   // solo el Pal compartido (o el personaje turquesa)
     if (NO_ANTENNA.includes(active) || ['angine', 'chicago'].includes(special)) return;
     if (w && (w.hat || w.ears || w.head)) return;
     const sway = R(Math.sin(g.t * 2.2 + (P.bob || 0)) * 0.6);
