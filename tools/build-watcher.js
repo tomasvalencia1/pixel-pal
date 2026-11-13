@@ -8,7 +8,8 @@ const NET = path.join(process.env.WINDIR || 'C:\\Windows', 'Microsoft.NET', 'Fra
 const META = path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'WinMetadata');
 const csc = path.join(NET, 'csc.exe');
 const src = path.join(__dirname, '..', 'scripts', 'system-watch.cs');
-const out = path.join(__dirname, '..', 'scripts', 'system-watch.exe');
+// WATCH_OUT: compilar a otro sitio para probar (el de scripts/ está en uso mientras Pal está abierto)
+const out = process.env.WATCH_OUT || path.join(__dirname, '..', 'scripts', 'system-watch.exe');
 
 // Ya compilado y más nuevo que el código: no hace falta (y si Pal está abierto, el .exe está en uso)
 if (fs.existsSync(out) && fs.statSync(out).mtimeMs >= fs.statSync(src).mtimeMs && !process.argv.includes('--force')) {

@@ -112,6 +112,141 @@ static class Media {
   }
 }
 
+// ---------- 🪟 ventanas de las sesiones: quién está detrás de una conexión y traer una ventana al frente ----------
+static class Win {
+  [StructLayout(LayoutKind.Sequential)] struct TCPROW { public uint state, localAddr, localPort, remoteAddr, remotePort, pid; }
+  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] struct PROCESSENTRY32W {
+    public uint dwSize, cntUsage, th32ProcessID; public IntPtr th32DefaultHeapID; public uint th32ModuleID, cntThreads, th32ParentProcessID; public int pcPriClassBase; public uint dwFlags;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string szExeFile;
+  }
+  delegate bool EnumProc(IntPtr h, IntPtr l);
+  [DllImport("iphlpapi.dll")] static extern uint GetExtendedTcpTable(IntPtr t, ref int size, bool sort, int af, int cls, uint reserved);
+  [DllImport("kernel32.dll")] static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint pid);
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32FirstW(IntPtr s, ref PROCESSENTRY32W e);
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32NextW(IntPtr s, ref PROCESSENTRY32W e);
+  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
+  [DllImport("kernel32.dll")] static extern bool AttachConsole(uint pid);
+  [DllImport("kernel32.dll")] static extern bool FreeConsole();
+  [DllImport("kernel32.dll")] static extern IntPtr GetConsoleWindow();
+  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc cb, IntPtr l);
+  [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr h, uint cmd);
+  [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
+  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr h);
+  [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
+  [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+
+  static ushort Port(uint p) { return (ushort)(((p & 0xFF) << 8) | ((p >> 8) & 0xFF)); }
+
+  // PID dueño de la conexión 127.0.0.1:clientPort → 127.0.0.1:serverPort (el hook que acaba de llamar a Pal)
+  public static uint OwnerOf(int clientPort, int serverPort) {
+    int size = 0;
+    GetExtendedTcpTable(IntPtr.Zero, ref size, false, 2, 5, 0);
+    IntPtr buf = Marshal.AllocHGlobal(size);
+    try {
+      if (GetExtendedTcpTable(buf, ref size, false, 2, 5, 0) != 0) return 0;
+      int n = Marshal.ReadInt32(buf);
+      int rowSize = Marshal.SizeOf(typeof(TCPROW));
+      for (int i = 0; i < n; i++) {
+        var r = (TCPROW)Marshal.PtrToStructure(new IntPtr(buf.ToInt64() + 4 + i * rowSize), typeof(TCPROW));
+        if (Port(r.localPort) == clientPort && Port(r.remotePort) == serverPort) return r.pid;
+      }
+    } finally { Marshal.FreeHGlobal(buf); }
+    return 0;
+  }
+
+  static Dictionary<uint, KeyValuePair<uint, string>> Procs() {
+    var d = new Dictionary<uint, KeyValuePair<uint, string>>();
+    IntPtr s = CreateToolhelp32Snapshot(2, 0);
+    if (s == new IntPtr(-1)) return d;
+    var e = new PROCESSENTRY32W(); e.dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32W));
+    if (Process32FirstW(s, ref e)) do { d[e.th32ProcessID] = new KeyValuePair<uint, string>(e.th32ParentProcessID, e.szExeFile); } while (Process32NextW(s, ref e));
+    CloseHandle(s);
+    return d;
+  }
+
+  static string Title(IntPtr h) { var sb = new StringBuilder(256); W.GetWindowText(h, sb, 256); return sb.ToString(); }
+  static List<IntPtr> WindowsOf(uint pid) {
+    var list = new List<IntPtr>();
+    EnumWindows((h, l) => {
+      uint p; W.GetWindowThreadProcessId(h, out p);
+      if (p == pid && W.IsWindowVisible(h) && GetWindow(h, 4) == IntPtr.Zero && Title(h).Length > 0) list.Add(h);
+      return true;
+    }, IntPtr.Zero);
+    return list;
+  }
+
+  // Sube por los procesos padre (hook → claude → terminal / VS Code / app de Claude) hasta encontrar una ventana visible.
+  // Si varias ventanas son del mismo programa, prefiere la que tenga el nombre del proyecto en el título.
+  public static string Who(string req, int clientPort, int serverPort, string hint) {
+    var o = new J().S("t", "who").S("req", req);
+    uint pid = OwnerOf(clientPort, serverPort);
+    if (pid == 0) return o.N("hwnd", 0).ToString();
+    var procs = Procs();
+    string h = (hint ?? "").ToLowerInvariant();
+    for (int depth = 0; depth < 14 && pid > 4; depth++) {
+      KeyValuePair<uint, string> info;
+      if (!procs.TryGetValue(pid, out info)) break;
+      string exe = info.Value ?? "";
+      if (exe.Equals("explorer.exe", StringComparison.OrdinalIgnoreCase) || exe.Equals("services.exe", StringComparison.OrdinalIgnoreCase)) break;
+      var wins = WindowsOf(pid);
+      if (wins.Count > 0) {
+        IntPtr best = wins[0];
+        if (h.Length > 0) foreach (var w in wins) if (Title(w).ToLowerInvariant().Contains(h)) { best = w; break; }
+        return o.N("hwnd", best.ToInt64()).S("app", exe).S("title", Title(best)).ToString();
+      }
+      // consola clásica: la ventana es de conhost, no de un padre (en Windows Terminal y VS Code es invisible y se sigue subiendo)
+      if (AttachConsole(pid)) {
+        IntPtr cw = GetConsoleWindow();
+        FreeConsole();
+        if (cw != IntPtr.Zero && W.IsWindowVisible(cw)) return o.N("hwnd", cw.ToInt64()).S("app", exe).S("title", Title(cw)).ToString();
+      }
+      pid = info.Key;
+    }
+    return o.N("hwnd", 0).ToString();
+  }
+
+  // Trae una ventana al frente (la restaura si estaba minimizada)
+  public static string Focus(string req, long hwnd) {
+    var h = new IntPtr(hwnd);
+    bool ok = false;
+    if (W.IsWindow(h)) {
+      if (W.IsIconic(h)) ShowWindow(h, 9);
+      IntPtr fg = W.GetForegroundWindow();
+      uint dummy;
+      uint fgThread = W.GetWindowThreadProcessId(fg, out dummy), me = GetCurrentThreadId();
+      AttachThreadInput(me, fgThread, true);
+      SetForegroundWindow(h); BringWindowToTop(h);
+      AttachThreadInput(me, fgThread, false);
+      if (W.GetForegroundWindow() != h) {   // último recurso: Windows deja cambiar el foco tras una pulsación de Alt
+        keybd_event(0x12, 0, 0, UIntPtr.Zero); keybd_event(0x12, 0, 2, UIntPtr.Zero);
+        SetForegroundWindow(h);
+      }
+      ok = W.GetForegroundWindow() == h;
+    }
+    return new J().S("t", "focus").S("req", req).B("ok", ok).ToString();
+  }
+
+  // Órdenes de Pal por la entrada estándar: "who <req> <puertoCliente> <puertoPal> <proyecto>" y "focus <req> <hwnd>"
+  public static void Listen(Action<string> emit) {
+    var t = new Thread(() => {
+      try {
+        string line;
+        while ((line = Console.In.ReadLine()) != null) {
+          var p = line.Trim().Split(new[] { ' ' }, 5);
+          try {
+            if (p.Length >= 4 && p[0] == "who") emit(Who(p[1], int.Parse(p[2]), int.Parse(p[3]), p.Length > 4 ? p[4] : ""));
+            else if (p.Length >= 3 && p[0] == "focus") emit(Focus(p[1], long.Parse(p[2])));
+          } catch { }
+        }
+      } catch { }
+    });
+    t.IsBackground = true;
+    t.Start();
+  }
+}
+
 static class Program {
   static readonly Dictionary<uint, string> procNames = new Dictionary<uint, string>();
   static string ProcName(uint pid) {
@@ -133,13 +268,15 @@ static class Program {
   }
   // Sin ventana de consola: se escribe directamente en la salida estándar (UTF-8). Si Pal se cierra, falla y el proceso termina.
   static StreamWriter stdout;
+  static readonly object emitLock = new object();   // dos hilos escriben (bucle y órdenes)
   static void Emit(string line) {
-    try { stdout.WriteLine(line); stdout.Flush(); } catch (IOException) { Environment.Exit(0); }
+    try { lock (emitLock) { stdout.WriteLine(line); stdout.Flush(); } } catch (IOException) { Environment.Exit(0); }
   }
 
   static void Main() {
     W.SetProcessDPIAware();
     stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false));
+    Win.Listen(Emit);   // órdenes de Pal (ventanas de las sesiones)
     string[] SHELL = { "Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd" };
     string trackFile = Environment.GetEnvironmentVariable("CLAWD_TRACK");
     if (string.IsNullOrEmpty(trackFile)) trackFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".clawd-flotante", "track.txt");

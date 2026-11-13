@@ -103,12 +103,29 @@ for (const edition of ['shared', 'personal']) {
         assert.doesNotMatch(JSON.stringify(m), /texto privado/);
       });
 
+      await t.test('🪟 averigua la ventana de la sesión y el panel permite ir a ella', async () => {
+        await P.http('/event', { method: 'POST', headers: P.auth(), body: JSON.stringify({ session_id: 'e2e-win', cwd: 'C:\proyectos\ventana', hook_event_name: 'SessionStart' }) });
+        const s = await until(() => P.page.evaluate(() => state.sessions.find(x => x.id === 'e2e-win' && x.winCheckedAt)));
+        assert.ok(s, 'el vigilante respondió');
+        // desde una terminal o desde la app de Claude hay ventana; en un entorno sin ventanas, no
+        if (s.win) {
+          assert.ok(Number(s.win.hwnd) > 0);
+          assert.equal(typeof s.win.app, 'string');
+          const html = await P.page.evaluate(() => document.querySelector('.card[data-id="e2e-win"]').outerHTML);
+          assert.match(html, /class="card [^"]*jump/);
+          assert.match(html, /app-chip/);
+        }
+        const r = await P.page.evaluate(() => window.clawd.focusSession('no-existe'));
+        assert.deepEqual(r, { ok: false, reason: 'unknown' });
+      });
+
       await t.test('uso del plan: /statusline (curl) y /usage (hooks de Node)', async () => {
         const r = await P.http('/statusline', { method: 'POST', headers: P.auth(), body: JSON.stringify({ rate_limits: { five_hour: { used_percentage: 40 }, seven_day: { used_percentage: 10 } } }) });
         assert.match(await r.text(), /sesión 60% libre · semana 90% libre/);
         const u = await P.http('/usage', { method: 'POST', headers: P.auth(), body: JSON.stringify({ five_hour: { used_percentage: 25 }, seven_day: { used_percentage: 5 }, at: Date.now() }) });
         assert.equal(u.status, 204);
-        assert.equal(await until(() => P.page.evaluate(() => state.usage && state.usage.five_hour.used_percentage)), 25);
+        // espera a que llegue el 25 (antes estaba el 40 de /statusline)
+        assert.equal(await until(() => P.page.evaluate(() => state.usage && state.usage.five_hour.used_percentage === 25 && 25)), 25);
       });
 
       await t.test('háblale: entiende un recordatorio sin internet', async () => {

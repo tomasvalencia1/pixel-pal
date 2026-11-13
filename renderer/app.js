@@ -3,6 +3,15 @@ const canvas = document.getElementById('clawd');
 const caption = document.getElementById('caption');
 const panel = document.getElementById('panel');
 const cards = document.getElementById('cards');
+// 🪟 clic en una sesión → su ventana
+cards.addEventListener('click', async e => {
+  const c = e.target.closest('.card[data-id]');
+  if (!c) return;
+  e.stopPropagation();
+  if (!c.classList.contains('jump')) { Speech.say('Aún no sé en qué ventana está esa sesión 🤔 Escríbele algo y lo apunto', 2, { dur: 3500 }); return; }
+  const r = await window.clawd.focusSession(c.dataset.id);
+  if (!r.ok) Speech.say(r.reason === 'gone' ? 'Esa ventana ya no existe 🫥' : 'No pude traer esa ventana 😅', 2, { dur: 3000 });
+});
 const pinIcon = document.getElementById('pin');
 const sitBtn = document.getElementById('sit');
 const ctx = ClawdSprite.setup(canvas);

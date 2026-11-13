@@ -183,6 +183,16 @@ function notify(title, body) {
   } catch { /* nada */ }
 }
 
+// ¿Hay que (re)averiguar en qué ventana está esta sesión? Al empezar, al escribirle, o si aún no se sabe (cada 2 min)
+function needsWindow(ev) {
+  if (!ev.session_id || !watchUsesExe) return false;
+  const name = ev.hook_event_name;
+  if (name === 'SessionEnd') return false;
+  if (name === 'SessionStart' || name === 'UserPromptSubmit') return true;
+  const s = sessions.get(ev.session_id);
+  return !s || (!s.win && Date.now() - (s.winCheckedAt || 0) > 120000);
+}
+
 function handleEvent(ev) {
   if (!ev || !ev.session_id) return;
   logEvent(ev);
@@ -350,6 +360,12 @@ function toDip(r) { try { return screen.screenToDipRect(null, r); } catch { retu
 
 function onSys(m) {
   switch (m.t) {
+    case 'who':
+    case 'focus': {
+      const cb = watchWait.get(m.req);
+      if (cb) { watchWait.delete(m.req); cb(m); }
+      break;
+    }
     case 'media':
       lastMediaRaw = m;
       setMedia(m);
@@ -383,11 +399,36 @@ function onSys(m) {
 
 // ⚡ Se usa la versión compilada (system-watch.exe, ~10 MB) y, si falla o no está, la de PowerShell (~100 MB).
 let watchExeFailed = false;
+let watchUsesExe = false;   // solo la versión compilada entiende órdenes (who / focus)
+// 🪟 Preguntas al vigilante: "who" (qué ventana hay detrás de una conexión) y "focus" (traer una ventana al frente)
+let watchReq = 0;
+const watchWait = new Map();
+function watchAsk(cmd, timeout = 600) {
+  return new Promise(resolve => {
+    if (!mediaChild || !watchUsesExe || !mediaChild.stdin || !mediaChild.stdin.writable) return resolve(null);
+    const id = `q${++watchReq}`;
+    const t = setTimeout(() => { watchWait.delete(id); resolve(null); }, timeout);
+    watchWait.set(id, r => { clearTimeout(t); resolve(r); });
+    try { mediaChild.stdin.write(`${cmd.replace('{id}', id)}\n`); } catch { clearTimeout(t); watchWait.delete(id); resolve(null); }
+  });
+}
+// Nombre corto del programa de la ventana
+function appLabel(exe) {
+  const e = String(exe || '').toLowerCase();
+  if (e === 'windowsterminal.exe') return 'Terminal';
+  if (e === 'code.exe' || e === 'code - insiders.exe') return 'VS Code';
+  if (e === 'cursor.exe') return 'Cursor';
+  if (e === 'claude.exe') return 'Claude';
+  if (/^(cmd|powershell|pwsh|conhost|openconsole|bash|wsl)\.exe$/.test(e)) return 'Consola';
+  if (/^idea|^pycharm|^webstorm|^rider/.test(e)) return 'JetBrains';
+  return e.replace(/\.exe$/, '') || 'Ventana';
+}
 function startSystemWatch() {
   try { fs.writeFileSync(path.join(DIR, 'track.txt'), '0'); } catch { /* nada */ }
   const env = { ...process.env, CLAWD_TRACK: path.join(DIR, 'track.txt') };
   const exe = path.join(UNPACKED, 'scripts', 'system-watch.exe');
   const useExe = !watchExeFailed && process.env.PAL_WATCH !== 'ps1' && fs.existsSync(exe);
+  watchUsesExe = useExe;
   const startedAt = Date.now();
   let gotData = false;
   try {
@@ -541,8 +582,20 @@ function startServer() {
       let body = '';
       req.on('data', c => { body += c; if (body.length > 5e6) req.destroy(); });
       req.on('end', () => {
-        try { handleEvent(JSON.parse(body.replace(/^﻿/, ''))); } catch { /* json roto */ }
-        res.writeHead(204); res.end();
+        let ev = null;
+        try { ev = JSON.parse(body.replace(/^\uFEFF/, '')); } catch { /* json roto */ }
+        const finish = () => { try { if (ev) handleEvent(ev); } catch { /* nada */ } res.writeHead(204); res.end(); };
+        if (!ev || !needsWindow(ev)) return finish();
+        const s0 = sessions.get(ev.session_id);
+        if (s0) s0.winCheckedAt = Date.now();
+        const hint = projectName(ev.cwd).replace(/[\r\n]/g, ' ').slice(0, 60);
+        watchAsk(`who {id} ${req.socket.remotePort} ${PORT} ${hint}`).then(r => {
+          finish();
+          const s = sessions.get(ev.session_id);
+          if (!s) return;
+          s.winCheckedAt = Date.now();
+          if (r && r.hwnd) { s.win = { hwnd: r.hwnd, app: appLabel(r.app), title: String(r.title || '').slice(0, 120) }; changed(); }
+        });
       });
       return;
     }
@@ -884,6 +937,14 @@ function setupIpc() {
   // Le soltaste un archivo encima: abre la ventana de sesiones
   ipcMain.on('open-sessions', (_e, file) => openSessionsWindow(typeof file === 'string' ? file : null));
   ipcMain.on('sess-action', (_e, a) => sessAction(a));
+  ipcMain.handle('focus-session', async (_e, id) => {
+    const s = sessions.get(String(id || ''));
+    if (!s || !s.win) return { ok: false, reason: 'unknown' };
+    const r = await watchAsk(`focus {id} ${Number(s.win.hwnd) || 0}`, 1500);
+    if (!r) return { ok: false, reason: 'nowatch' };
+    if (!r.ok) { delete s.win; changed(); return { ok: false, reason: 'gone' }; }
+    return { ok: true, app: s.win.app };
+  });
 
   ipcMain.on('drag-end', () => {
     if (drag) { anchor = clampAnchor(anchor); applyLayout(); saveConfig({ anchor, pos: null }); }

@@ -39,10 +39,11 @@ const Panel = (() => {
         </div>
       </div>` : '';
     return `
-      <div class="card ${s.status}">
+      <div class="card ${s.status}${s.win ? ' jump' : ''}" data-id="${esc(s.id)}" title="${s.win ? 'Clic: ir a su ventana (' + esc(s.win.app) + ')' : esc(s.cwd)}">
         <div class="row">
           <span class="dot ${s.status}"></span>
-          <span class="name" title="${esc(s.cwd)}">${esc(s.project)}</span>
+          <span class="name">${esc(s.project)}</span>
+          ${s.win ? `<span class="app-chip">↗ ${esc(s.win.app)}</span>` : ''}
           <span class="ago">${ago(now - s.lastEvent)}</span>
         </div>
         <div class="status ${s.status}">${esc(statusText(s))}</div>
