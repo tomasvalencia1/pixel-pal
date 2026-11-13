@@ -20,6 +20,7 @@ const Boost = (() => {
   const DEFAULTS = {
     xp: 0, totals: {}, streak: { last: null, count: 0, best: 0 }, todayPomos: { date: null, n: 0 }, ach: [], reminders: [],
     notes: [], day: { date: null, xp: 0 }, prevDay: null, mood: { v: 70, at: 0 }, agenda: { morning: null, evening: null },
+    items: {}, gifts: { date: null, n: 0, pending: 0, daily: null, pity: 0 },
   };
   let data = JSON.parse(JSON.stringify(DEFAULTS));
   let loaded = false;
@@ -29,6 +30,87 @@ const Boost = (() => {
     if (!loaded) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => { try { window.clawd.progressSave(data); } catch { /* nada */ } }, 800);
+  }
+
+  // ======================================================================
+  // 🎁 Regalos sorpresa: uno al día al empezar a trabajar, a veces al terminar tareas o pomodoros,
+  // y uno garantizado cada 5 niveles. Rarezas: común, raro, épico y legendario. Repetido = XP extra.
+  // ======================================================================
+  const GIFT_CHANCE = { task: 0.06, pomo: 0.35, commit: 0.08 };
+  const MAX_RANDOM_GIFTS = 4;           // al día, sin contar el diario ni los de nivel
+  const giftBtn = () => document.getElementById('hatbtn');
+  function giftBadge() {
+    const b = giftBtn();
+    if (!b) return;
+    b.classList.toggle('gift', data.gifts.pending > 0);
+    b.dataset.gifts = data.gifts.pending > 0 ? String(data.gifts.pending) : '';
+  }
+  function maybeGift(kind, n) {
+    const g = data.gifts;
+    if (g.date !== today()) { g.date = today(); g.n = 0; }
+    if (g.daily !== today()) { g.daily = today(); setTimeout(() => giveGift('daily'), 4000); return; }
+    const p = GIFT_CHANCE[kind];
+    if (!p || g.n >= MAX_RANDOM_GIFTS) return;
+    if (Math.random() < 1 - Math.pow(1 - p, Math.min(n, 5))) { g.n++; setTimeout(() => giveGift(kind), 2500); }
+  }
+  // minRarity: el regalo de nivel es épico o mejor
+  function giveGift(reason, minRarity) {
+    data.gifts.pending = (data.gifts.pending || 0) + 1;
+    if (minRarity) data.gifts.min = minRarity;
+    save(); giftBadge();
+    const why = reason === 'daily' ? '¡El regalo de hoy!' : reason === 'level' ? '¡Regalo por subir de nivel!' : reason === 'pomo' ? '¡Te lo ganaste con ese pomodoro!' : '¡Encontré algo mientras trabajabas!';
+    announce(() => {
+      ClawdSprite.trigger('hello');
+      if (window.Sound) Sound.play('charge');
+      Speech.say(`🎁 ${why}`, 3, {
+        dur: 15000,
+        buttons: [{ label: '🎁 Abrir', value: 'open', primary: true }, { label: 'Luego', value: 'later' }],
+        onAnswer: v => { if (v === 'open') openGift(); else if (v === 'later') Speech.say('Lo guardo en la tienda 🛍️', 1, { dur: 2200, cooldown: 0 }); },
+      });
+    });
+  }
+  // Tira la rareza (con un mínimo) y elige un coleccionable de esa rareza que esté en temporada
+  function rollGift(minRarity) {
+    const R = CATALOG.RARITY, order = CATALOG.RARITY_ORDER;
+    const from = Math.max(0, order.indexOf(minRarity || 'comun'));
+    // «suerte acumulada»: tras 10 regalos sin épico o mejor, el siguiente lo es
+    const pity = (data.gifts.pity || 0) >= 10 ? order.indexOf('epico') : 0;
+    const pool = order.slice(Math.max(from, pity));
+    let r = Math.random() * pool.reduce((a, k) => a + R[k].p, 0);
+    let rarity = pool[pool.length - 1];
+    for (const k of pool) { if ((r -= R[k].p) < 0) { rarity = k; break; } }
+    const avail = k => CATALOG.collectibles().filter(it => it.drop === k && CATALOG.inSeason(it.season));
+    // si no hay nada de esa rareza ahora (p. ej. solo de temporada), se baja a la anterior
+    let i = order.indexOf(rarity);
+    while (i > 0 && !avail(order[i]).length) i--;
+    rarity = order[i];
+    // en temporada, más fácil que salga lo de temporada
+    const list = avail(rarity);
+    const seasonal = list.filter(it => it.season);
+    const it = seasonal.length && Math.random() < 0.5 ? pick(seasonal) : pick(list);
+    data.gifts.pity = order.indexOf(rarity) >= order.indexOf('epico') ? 0 : (data.gifts.pity || 0) + 1;
+    return it;
+  }
+  function openGift() {
+    if (!loaded || !(data.gifts.pending > 0)) return null;
+    data.gifts.pending--;
+    const it = rollGift(data.gifts.min);
+    data.gifts.min = null;
+    const dup = (data.items[it.id] || 0) > 0;
+    data.items[it.id] = (data.items[it.id] || 0) + 1;
+    const R = CATALOG.RARITY[it.drop];
+    if (dup) { const before = levelOf(data.xp); data.xp += R.xp; const after = levelOf(data.xp); if (after > before) levelUp(after); }
+    save(); giftBadge(); renderBox();
+    celebrateUntil = Date.now() + (it.drop === 'legendario' ? 5000 : 2500);
+    if (window.Sound) Sound.play(it.drop === 'legendario' || it.drop === 'epico' ? 'done' : 'ding');
+    const head = `✨ ${R.name.toUpperCase()}: ${it.emoji} ${it.name}`;
+    const opts = { dur: dup ? 5000 : 15000, lines: [dup ? `Repetido → +${R.xp} XP` : (it.list === 'skins' ? '¡Personaje secreto desbloqueado!' : '¡Nuevo en tu colección!')] };
+    if (!dup) {
+      opts.buttons = [{ label: it.list === 'skins' ? 'Cambiar a él' : 'Ponérmelo', value: 'wear', primary: true }, { label: 'Ver Pal-dex', value: 'dex' }];
+      opts.onAnswer = v => { if (v === 'wear') window.clawd.setOutfit({ [it.slot]: it.id }); else if (v === 'dex') window.clawd.openShop('dex'); };
+    }
+    Speech.say(head, 3, opts);
+    return { id: it.id, rarity: it.drop, dup };
   }
 
   // Avisos en cola, para no pisar la burbuja de "tarea terminada"
@@ -128,6 +210,7 @@ const Boost = (() => {
     }
     touchStreak();
     checkAch(kind);
+    maybeGift(kind, n);
     const after = levelOf(data.xp);
     if (after > before) levelUp(after);
     save();
@@ -135,6 +218,7 @@ const Boost = (() => {
   }
 
   function levelUp(lvl) {
+    if (lvl % 5 === 0) setTimeout(() => giveGift('level', 'epico'), 6000);   // 🎁 cada 5 niveles, regalo épico o mejor
     const hat = LEVEL_HATS.find(x => x.lvl === lvl);
     announce(() => {
       celebrateUntil = Date.now() + 3500;
@@ -566,6 +650,9 @@ const Boost = (() => {
         data.prevDay = d.prevDay && typeof d.prevDay === 'object' ? d.prevDay : null;
         data.mood = { ...DEFAULTS.mood, ...(d.mood || {}) };
         data.agenda = { ...DEFAULTS.agenda, ...(d.agenda || {}) };
+        data.items = d.items && typeof d.items === 'object' ? d.items : {};
+        data.gifts = { ...DEFAULTS.gifts, ...(d.gifts || {}) };
+        setTimeout(giftBadge, 500);
       }
     } catch { /* primera vez */ }
     loaded = true;
@@ -633,6 +720,8 @@ const Boost = (() => {
     addNote, removeNote, clearNotes, agendaLines, showAgenda, eveningLines, cheer, nextAt, repeatText, setDurations: p => setDurations(p, true),
     pomo: action => { if (action === 'start') { if (pomo.mode !== 'focus') startFocus(); } else if (pomo.mode !== 'off') stopPomo(false); },
     focusing: () => pomo.mode === 'focus',
+    // 🎁 regalos y colección
+    openGift, giveGift, rollGift, items: () => ({ ...data.items }), giftsPending: () => data.gifts.pending || 0, level: () => levelOf(data.xp),
   };
 })();
 window.Boost = Boost;

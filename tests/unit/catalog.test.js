@@ -67,3 +67,35 @@ test('todos los ids del catálogo son únicos', () => {
     assert.equal(new Set(ids).size, ids.length, k);
   }
 });
+
+// ---------- 🎁 regalos y coleccionables ----------
+test('coleccionables: solo se pueden poner si te han salido', () => {
+  const CATALOG = require('../../renderer/catalog.js');
+  const all = CATALOG.collectibles();
+  assert.ok(all.length >= 15);
+  for (const it of all) assert.ok(CATALOG.RARITY[it.drop], `${it.id} con rareza válida`);
+  assert.equal(CATALOG.clean({ skin: 'dorado', hat: 'halo' }, 99, []).skin, 'clawd');
+  assert.equal(CATALOG.clean({ skin: 'dorado', hat: 'halo' }, 99, []).hat, 'none');
+  const ok = CATALOG.clean({ skin: 'dorado', hat: 'halo', glasses: 'visor', neck: 'cape' }, 1, ['dorado', 'halo', 'visor', 'cape']);
+  assert.deepEqual(ok, { skin: 'dorado', hat: 'halo', glasses: 'visor', neck: 'cape' });
+  // los normales siguen libres
+  assert.equal(CATALOG.clean({ hat: 'cap' }, 1, []).hat, 'cap');
+});
+
+test('rarezas: suman 100 y van de más a menos probables', () => {
+  const { RARITY, RARITY_ORDER } = require('../../renderer/catalog.js');
+  assert.equal(RARITY_ORDER.reduce((a, k) => a + RARITY[k].p, 0), 100);
+  for (let i = 1; i < RARITY_ORDER.length; i++) assert.ok(RARITY[RARITY_ORDER[i]].p < RARITY[RARITY_ORDER[i - 1]].p);
+});
+
+test('temporadas: Halloween, Navidad (cruza el año) y San Valentín', () => {
+  const { inSeason } = require('../../renderer/catalog.js');
+  const d = s => new Date(`${s}T12:00:00`);
+  assert.equal(inSeason('halloween', d('2026-10-31')), true);
+  assert.equal(inSeason('halloween', d('2026-11-13')), false);
+  assert.equal(inSeason('xmas', d('2026-12-24')), true);
+  assert.equal(inSeason('xmas', d('2027-01-03')), true);
+  assert.equal(inSeason('xmas', d('2027-01-20')), false);
+  assert.equal(inSeason('valentine', d('2027-02-14')), true);
+  assert.equal(inSeason(undefined, d('2027-06-01')), true, 'sin temporada: siempre');
+});

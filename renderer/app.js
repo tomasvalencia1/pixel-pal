@@ -809,6 +809,11 @@ function frame(ms) {
   if (ex && ex.want) want = ex.want;
   if (now < awakeUntil && want === 'sleeping') want = 'idle';   // 🫨 sacudido: sigue despierto
   if (now < pet.until && !game) want = 'kiss';                   // 💕 te lanza un beso
+  // ⭐ desde el nivel 10, Pal tiene un aura de destellos dorados (más a más nivel)
+  if (window.Boost && Boost.level && want !== 'sleeping') {
+    const lv = Boost.level();
+    if (lv >= 10 && Math.random() < dt * Math.min(1.2, 0.25 + (lv - 10) * 0.05)) ClawdSprite.api.spawn({ x: 6 + Math.random() * 28, y: 12 + Math.random() * 22, vx: (Math.random() - 0.5) * 6, vy: -18, c: Math.random() < 0.5 ? '#FFE680' : '#FFFFFF', life: 0.8 });
+  }
   if (window.Boost && !game) want = Boost.want(want);   // 🍅 pomodoro: sentado y concentrado / estirándose
   const action = pickAction(now, want);
   ClawdSprite.draw(ctx, ms / 1000, action, {
@@ -1068,6 +1073,7 @@ document.getElementById('restartbtn').addEventListener('click', e => { e.stopPro
 
 // ✋ Claude pide permiso: Permitir / Denegar / Ver (si no contestas, sale el diálogo de siempre)
 window.clawd.onCommand(c => {
+  if (c && c.openGift && window.Boost) Boost.openGift();
   if (c && c.quiet) { Calm.set({ quiet: c.quiet }); if (c.quiet.on && c.quiet.reason === 'manual') Speech.say('🤫 Vale, me quedo calladito', 3, { dur: 2000 }); }
   if (c && c.perm) {
     const p = c.perm;

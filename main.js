@@ -1014,31 +1014,41 @@ function listenOnce() {
 }
 let shopWin = null;
 function currentLevel() { const p = readJson(path.join(DIR, 'progress.json'), null); return CATALOG.levelOf(p && p.xp); }
-function getOutfit() { return CATALOG.clean(config.outfit, currentLevel()); }
+// 🎁 coleccionables que tienes (los guarda la ventana de Pal en progress.json)
+function progressNow() { return readJson(path.join(DIR, 'progress.json'), null) || {}; }
+function currentOwned() { const it = progressNow().items || {}; return Object.keys(it).filter(k => it[k] > 0); }
+function shopData(outfit) {
+  const p = progressNow();
+  return { outfit: outfit || getOutfit(), level: CATALOG.levelOf(p.xp), items: p.items || {}, pending: (p.gifts && p.gifts.pending) || 0 };
+}
+function getOutfit() { return CATALOG.clean(config.outfit, currentLevel(), currentOwned()); }
 function setOutfit(patch) {
-  const next = CATALOG.clean({ ...getOutfit(), ...(patch && typeof patch === 'object' ? patch : {}) }, currentLevel());
+  const next = CATALOG.clean({ ...getOutfit(), ...(patch && typeof patch === 'object' ? patch : {}) }, currentLevel(), currentOwned());
   saveConfig({ outfit: next });
   sendCommand({ outfit: next });
-  if (shopWin && !shopWin.isDestroyed()) shopWin.webContents.send('shop-update', { outfit: next, level: currentLevel() });
+  if (shopWin && !shopWin.isDestroyed()) shopWin.webContents.send('shop-update', shopData(next));
   return next;
 }
-function openShop() {
-  if (shopWin && !shopWin.isDestroyed()) { shopWin.show(); shopWin.focus(); return; }
+function openShop(tab) {
+  tab = ['skins', 'hats', 'glasses', 'neck', 'dex'].includes(tab) ? tab : '';
+  if (shopWin && !shopWin.isDestroyed()) { shopWin.show(); shopWin.focus(); if (tab) shopWin.webContents.send('shop-tab', tab); return; }
   shopWin = new BrowserWindow({
     width: 640, height: 520, minWidth: 560, minHeight: 440, center: true, frame: false, resizable: true,
     backgroundColor: '#1c1a18', title: 'Tienda de Pal', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload-shop.js'), contextIsolation: true, nodeIntegration: false, additionalArguments: EDITION_ARG },
   });
-  shopWin.loadFile(path.join(__dirname, 'renderer', 'shop.html'));
+  shopWin.loadFile(path.join(__dirname, 'renderer', 'shop.html'), tab ? { hash: tab } : undefined);
   shopWin.once('ready-to-show', () => { shopWin.show(); shopWin.focus(); });
   shopWin.on('closed', () => { shopWin = null; });
 }
 
 function setupIpc() {
   ipcMain.on('outfit-set', (_e, p) => setOutfit(p));
-  ipcMain.on('shop-open', () => openShop());
-  ipcMain.handle('shop-get', () => ({ outfit: getOutfit(), level: currentLevel() }));
-  ipcMain.handle('shop-set', (_e, p) => ({ outfit: setOutfit(p), level: currentLevel() }));
+  ipcMain.on('shop-open', (_e, tab) => openShop(String(tab || '')));
+  ipcMain.handle('shop-get', () => shopData());
+  ipcMain.handle('shop-set', (_e, p) => shopData(setOutfit(p)));
+  // 🎁 abrir un regalo desde la tienda (lo abre Pal en su ventana, con su animación)
+  ipcMain.on('shop-open-gift', () => sendCommand({ openGift: true }));
   ipcMain.on('shop-close', () => { if (shopWin && !shopWin.isDestroyed()) shopWin.close(); });
   // 💬 hablar con Pal
   ipcMain.handle('talk-ask', (_e, text, ctx) => brain.ask(String(text || ''), String(ctx || '')));
@@ -1074,6 +1084,8 @@ function setupIpc() {
   ipcMain.on('progress-save', (_e, d) => {
     if (!d || typeof d !== 'object') return;
     try { if (JSON.stringify(d).length < 200000) writeJson(PROGRESS_FILE, d); } catch { /* nada */ }
+    // la tienda abierta se entera de regalos nuevos y de lo que tienes
+    if (shopWin && !shopWin.isDestroyed()) shopWin.webContents.send('shop-update', shopData());
   });
   // 🔔 Aviso de Windows (pomodoro, recordatorios)
   ipcMain.on('notify', (_e, n) => {

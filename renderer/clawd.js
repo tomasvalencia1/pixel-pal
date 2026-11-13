@@ -440,6 +440,17 @@ const ClawdSprite = (() => {
       } else if (w.glasses === 'heart') {
         bitmap(HEART, 12 + lx, ey - 1, '#F28FB1'); bitmap(HEART, 22 + lx, ey - 1, '#F28FB1'); rect(17 + lx, ey, 5, 1, '#D9668F');
       } else if (w.glasses === 'monocle') { frame(24 + lx); line(26 + lx, ey + 3, 27 + lx, ey + 8, gold); }
+      else if (w.glasses === 'star') {         // 🎁 gafas de estrella
+        for (const e of [14 + lx, 24 + lx]) { rect(e - 1, ey + 1, 5, 1, C.yellow); rect(e + 1, ey - 1, 1, 5, C.yellow); rect(e, ey, 3, 3, C.yellow); px(e + 1, ey + 1, C.white); }
+        rect(18 + lx, ey + 1, 4, 1, '#E8A33D');
+      } else if (w.glasses === 'pixel') {      // 🎁 gafas 8 bits
+        rect(11 + lx, ey, 18, 1, '#1F1A17'); rect(12 + lx, ey + 1, 6, 2, '#1F1A17'); rect(22 + lx, ey + 1, 6, 2, '#1F1A17');
+        px(13 + lx, ey + 1, C.white); px(23 + lx, ey + 1, C.white);
+      } else if (w.glasses === 'visor') {      // 🎁 visor cíber (con una luz que lo recorre)
+        rect(11 + lx, ey - 1, 18, 1, '#1D5E56');
+        alpha(0.8, () => rect(11 + lx, ey, 18, 3, '#2BD9C6'));
+        px(12 + lx + (Math.floor((g.t || 0) * 12) % 16), ey + 1, C.white);
+      }
     }
     if (w.neckwear) {                          // 🛍️ cuello de la tienda
       const t = g.neckTop != null ? g.neckTop : g.top;
@@ -453,6 +464,17 @@ const ClawdSprite = (() => {
       } else if (w.neckwear === 'bandana') {
         rect(13, t + 10, 14, 1, '#E5484D'); rect(14, t + 11, 12, 1, '#E5484D'); rect(16, t + 12, 8, 1, '#E5484D'); rect(18, t + 13, 4, 1, '#E5484D');
         px(15, t + 10, C.white); px(19, t + 11, C.white); px(23, t + 10, C.white); px(20, t + 12, C.white);
+      } else if (w.neckwear === 'medal') {     // 🎁 medalla
+        rect(17, t + 10, 1, 2, '#4C8DE0'); rect(22, t + 10, 1, 2, '#E5484D');
+        rect(18, t + 12, 4, 3, C.yellow); px(19, t + 13, '#E8A33D'); px(18, t + 12, C.white);
+      } else if (w.neckwear === 'bell') {      // 🎁 cascabel
+        rect(g.x0 + 1, t + 10, g.W - 2, 1, '#E5484D');
+        rect(19, t + 11, 3, 2, C.yellow); px(20, t + 13, '#8B5A2B'); px(19, t + 11, C.white);
+      } else if (w.neckwear === 'cape') {      // 🎁 capa de héroe
+        rect(g.x0, t + 10, g.W, 1, '#B83238');
+        rect(g.x0 - 1, t + 11, 1, 6, '#D63B3B'); rect(g.x0 + g.W, t + 11, 1, 6, '#D63B3B');
+        px(g.x0 - 2, t + 15, '#D63B3B'); px(g.x0 + g.W + 1, t + 15, '#D63B3B');
+        px(20, t + 10, C.yellow);
       } else if (w.neckwear === 'necklace') {
         for (let x = 13; x <= 26; x += 2) px(x, t + 10 + (x > 15 && x < 24 ? 1 : 0), C.white);
         rect(19, t + 12, 2, 2, '#F28FB1');
@@ -527,6 +549,27 @@ const ClawdSprite = (() => {
         rect(x + 14, t - 7, 5, 1, C.cap);
         rect(x + 17, t - 8, 3, 1, C.cap);
         rect(x + 19, t - 10, 2, 2, C.white);
+      } else if (w.hat === 'propeller') {      // 🎁 gorra con hélice (gira)
+        rect(x + 4, t - 3, 12, 3, C.yellow); rect(x + 4, t - 3, 4, 3, C.red); rect(x + 12, t - 3, 4, 3, C.blue);
+        rect(x + 9, t - 5, 2, 2, ink);
+        if (Math.floor((g.t || 0) * 12) % 2) rect(x + 5, t - 6, 10, 1, '#9AA3AD'); else rect(x + 8, t - 6, 4, 1, '#C9CED6');
+      } else if (w.hat === 'halo') {           // 🎁 aureola flotante
+        const b = Math.round(Math.sin((g.t || 0) * 2.2));
+        rect(x + 5, t - 7 + b, 10, 1, C.yellow); rect(x + 5, t - 5 + b, 10, 1, '#E8A33D');
+        px(x + 4, t - 6 + b, C.yellow); px(x + 15, t - 6 + b, '#E8A33D'); px(x + 7, t - 7 + b, C.white);
+      } else if (w.hat === 'pumpkin') {        // 🎃 calabaza (Halloween)
+        rect(x + 4, t - 5, 12, 5, '#F28C28');
+        for (const sx of [7, 10, 13]) rect(x + sx, t - 5, 1, 5, '#C96A12');
+        rect(x + 9, t - 7, 2, 2, '#3E8E3E');
+        px(x + 6, t - 3, '#2A2522'); px(x + 13, t - 3, '#2A2522');
+      } else if (w.hat === 'antlers') {        // 🦌 cuernos de reno (Navidad)
+        const br = '#8B5A2B';
+        rect(x + 4, t - 5, 1, 5, br); px(x + 3, t - 4, br); px(x + 2, t - 5, br); rect(x + 5, t - 7, 1, 2, br); px(x + 3, t - 7, br);
+        rect(x + 15, t - 5, 1, 5, br); px(x + 16, t - 4, br); px(x + 17, t - 5, br); rect(x + 14, t - 7, 1, 2, br); px(x + 16, t - 7, br);
+      } else if (w.hat === 'cupid') {          // 💘 diadema de Cupido (San Valentín)
+        rect(x + 2, t - 2, 16, 1, '#D9668F');
+        px(x + 5, t - 3, '#D9668F'); px(x + 14, t - 3, '#D9668F');
+        bitmap(HEART, x + 3, t - 8, '#F28FB1'); bitmap(HEART, x + 12, t - 8, '#E5484D');
       } else if (w.hat === 'flowers') {
         for (let i = 0; i < 5; i++) {
           const fx = x + 1 + i * 4;

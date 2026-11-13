@@ -5,9 +5,14 @@ ClawdSprite.setup(canvas);
 
 let outfit = { skin: 'clawd', hat: 'none', glasses: 'none', neck: 'none' };
 let level = 1;
+let items = {};          // 🎁 coleccionables que tienes { id: cuántos }
+let pending = 0;         // regalos por abrir
 let tab = 'skins';
 let hover = null;              // { slot, id } que se está probando con el ratón
 const SLOT = { skins: 'skin', hats: 'hat', glasses: 'glasses', neck: 'neck' };
+const R = CATALOG.RARITY;
+const owns = it => !it.drop || (items[it.id] || 0) > 0;
+function apply(r) { if (!r) return; if (r.outfit) outfit = r.outfit; if (r.level) level = r.level; if (r.items) items = r.items; if (typeof r.pending === 'number') pending = r.pending; }
 
 // ---------- vista previa animada ----------
 const SHOW = [['idle', 4], ['wave', 2.5], ['dance', 4], ['thinking', 3], ['editing', 3], ['celebrate', 3]];
@@ -43,8 +48,12 @@ function render() {
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   const grid = $('grid');
   grid.innerHTML = '';
+  $('giftbtn').hidden = !(pending > 0);
+  $('giftbtn').textContent = `🎁 Abrir regalo${pending > 1 ? ` (${pending})` : ''}`;
+  if (tab === 'dex') return renderDex(grid);
   const slot = SLOT[tab];
   for (const it of CATALOG[tab]) {
+    if (!owns(it)) continue;
     const locked = it.lvl && level < it.lvl;
     const b = document.createElement('button');
     b.type = 'button';
@@ -53,7 +62,8 @@ function render() {
     const em = document.createElement('span'); em.className = 'em'; em.textContent = locked ? '🔒' : it.emoji;
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.name;
     const tag = document.createElement('span'); tag.className = 'tag';
-    tag.textContent = outfit[slot] === it.id ? 'Puesto ✓' : locked ? `Nivel ${it.lvl}` : it.lvl ? `⭐ Exclusivo nivel ${it.lvl}` : 'Gratis';
+    tag.textContent = outfit[slot] === it.id ? 'Puesto ✓' : locked ? `Nivel ${it.lvl}` : it.lvl ? `⭐ Exclusivo nivel ${it.lvl}` : it.drop ? `🎁 ${R[it.drop].name}` : 'Gratis';
+    if (it.drop && outfit[slot] !== it.id) tag.style.color = R[it.drop].color;
     b.append(em, nm, tag);
     if (!locked) {
       b.addEventListener('mouseenter', () => { hover = { slot, id: it.id }; showInfo(); });
@@ -62,14 +72,50 @@ function render() {
     }
     grid.appendChild(b);
   }
-  $('hint').textContent = tab === 'hats' ? `Tu nivel: ${level}. Los sombreros exclusivos se desbloquean subiendo de nivel.` : 'Pasa el ratón por encima para probártelo y haz clic para ponértelo.';
+  $('hint').textContent = tab === 'dex' ? 'Los coleccionables salen en los regalos: uno al día, a veces al terminar tareas o pomodoros, y cada 5 niveles.' : tab === 'hats' ? `Tu nivel: ${level}. Los sombreros exclusivos se desbloquean subiendo de nivel.` : 'Pasa el ratón por encima para probártelo y haz clic para ponértelo.';
+  showInfo();
+}
+
+// 📖 Pal-dex: todos los coleccionables por rareza; los que faltan, en gris y con «???»
+function renderDex(grid) {
+  const all = CATALOG.collectibles();
+  const got = all.filter(it => (items[it.id] || 0) > 0).length;
+  const head = document.createElement('div'); head.className = 'dexhead';
+  head.innerHTML = `<b>Colección ${got}/${all.length}</b><span class="dexbar"><i style="width:${Math.round((got / all.length) * 100)}%"></i></span><span>${pending > 0 ? `🎁 ${pending} por abrir` : ''}</span>`;
+  grid.appendChild(head);
+  for (const rk of CATALOG.RARITY_ORDER.slice().reverse()) {
+    const list = all.filter(it => it.drop === rk);
+    if (!list.length) continue;
+    const sec = document.createElement('div'); sec.className = 'dexsec'; sec.style.color = R[rk].color;
+    sec.textContent = `${R[rk].name} · ${list.filter(it => items[it.id] > 0).length}/${list.length}`;
+    grid.appendChild(sec);
+    for (const it of list) {
+      const n = items[it.id] || 0;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'item' + (n ? '' : ' missing') + (n && outfit[it.slot] === it.id ? ' on' : '');
+      const em = document.createElement('span'); em.className = 'em'; em.textContent = n ? it.emoji : '❔';
+      const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = n ? it.name : '???';
+      const rr = document.createElement('span'); rr.className = 'rar'; rr.style.color = R[rk].color;
+      const S = it.season && CATALOG.SEASONS[it.season];
+      rr.textContent = S && !n ? `${S.emoji} Solo en ${S.name}` : R[rk].name;
+      b.append(em, nm, rr);
+      if (n > 1) { const c = document.createElement('span'); c.className = 'cnt'; c.textContent = `×${n}`; b.appendChild(c); }
+      if (n) {
+        b.title = it.desc || `${it.name} (${R[rk].name})`;
+        b.addEventListener('mouseenter', () => { hover = { slot: it.slot, id: it.id }; showInfo(); });
+        b.addEventListener('mouseleave', () => { hover = null; showInfo(); });
+        b.addEventListener('click', () => choose({ [it.slot]: it.id }));
+      } else b.disabled = true;
+      grid.appendChild(b);
+    }
+  }
   showInfo();
 }
 
 async function choose(patch) {
   try {
-    const r = await window.shop.set(patch);
-    outfit = r.outfit; level = r.level;
+    apply(await window.shop.set(patch));
   } catch { /* nada */ }
   hover = null;
   render();
@@ -92,10 +138,13 @@ $('tabs').addEventListener('click', e => { const t = e.target.closest('.tab'); i
 $('reset').addEventListener('click', () => choose({ hat: 'none', glasses: 'none', neck: 'none' }));
 $('close').addEventListener('click', () => window.shop.close());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') window.shop.close(); });
-window.shop.onUpdate(d => { if (d && d.outfit) { outfit = d.outfit; level = d.level || level; render(); } });
+window.shop.onUpdate(d => { if (d) { apply(d); render(); } });
+if (window.shop.onTab) window.shop.onTab(t => { tab = t; render(); });
+$('giftbtn').addEventListener('click', () => window.shop.openGift());
 
 (async () => {
-  try { const r = await window.shop.get(); outfit = r.outfit; level = r.level; } catch { /* nada */ }
+  try { apply(await window.shop.get()); } catch { /* nada */ }
+  if (['skins', 'hats', 'glasses', 'neck', 'dex'].includes(location.hash.slice(1))) tab = location.hash.slice(1);
   render();
   requestAnimationFrame(frame);
 })();

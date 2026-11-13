@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('PAL_EDITION', (process.argv.find(a => a.startsW
 
 contextBridge.exposeInMainWorld('shop', {
   get: () => ipcRenderer.invoke('shop-get'),
+  openGift: () => ipcRenderer.send('shop-open-gift'),
+  onTab: cb => ipcRenderer.on('shop-tab', (_e, t) => cb(t)),
   set: patch => ipcRenderer.invoke('shop-set', patch && typeof patch === 'object' ? patch : {}),
   close: () => ipcRenderer.send('shop-close'),
   onUpdate: cb => ipcRenderer.on('shop-update', (_e, d) => cb(d)),

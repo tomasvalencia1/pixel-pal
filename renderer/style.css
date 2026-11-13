@@ -375,3 +375,7 @@ body.quiet #dndbtn { background: rgba(167, 155, 245, 0.22); border-color: rgba(1
 .stop-btn { font-size: 11px; line-height: 1; padding: 2px 4px; margin-left: 2px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.12); background: none; cursor: pointer; opacity: 0.35; filter: grayscale(1); }
 .stop-btn:hover { opacity: 0.8; }
 .stop-btn.on { opacity: 1; filter: none; border-color: rgba(229, 72, 77, 0.6); background: rgba(229, 72, 77, 0.15); }
+
+/* 🎁 regalos por abrir: insignia en el botón de la tienda */
+#hatbtn { position: relative; }
+#hatbtn.gift::after { content: "🎁" attr(data-gifts); position: absolute; top: -5px; right: -4px; font-size: 10px; font-weight: 700; color: #fff; background: #E5484D; border-radius: 9px; padding: 1px 5px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); animation: pulse 1.6s infinite; }

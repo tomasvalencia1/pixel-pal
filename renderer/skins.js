@@ -11,6 +11,13 @@ const Skins = (() => {
   const fxQ = t => (t - fx.start) / fx.dur;
   const startFx = (kind, dur) => { fx.kind = kind; fx.start = now(); fx.dur = dur; };
   const rnd = (a, b) => a + Math.random() * (b - a);
+  // color HSL → #rrggbb (para el Pal arcoíris)
+  function hsl(h, sat, l) {
+    sat /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l);
+    const c = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)))).toString(16).padStart(2, '0');
+    return `#${c(0)}${c(8)}${c(4)}`;
+  }
   const calm = a => ['idle', 'sit', 'sleeping', 'dance', 'watch'].includes(a);
   const moving = P => P.legs.some(v => v);
   // elipse rellena
@@ -32,6 +39,26 @@ const Skins = (() => {
     naranja: {
       palette: { body: '#D97757', shade: '#B85C3E', light: '#EC9C80', dark: '#7A3A28', blush: '#F6A592' },
     },
+    // 🎁 Personajes secretos (salen en regalos). Mismo cuerpo que Pal, otra piel.
+    retro: { palette: { body: '#8BAC0F', shade: '#306230', light: '#9BBC0F', dark: '#0F380F', blush: '#9BBC0F', eye: '#0F380F' } },
+    sombra: { palette: { body: '#4B3F72', shade: '#2E2650', light: '#7B6DB0', dark: '#1A1530', blush: '#B07BD9', eye: '#F2E85C' } },
+    dorado: {
+      palette: { body: '#E8B923', shade: '#B8860B', light: '#FFE680', dark: '#7A5A05', blush: '#F6A592' },
+      pose(P, active, t) {                       // destellos de vez en cuando
+        if (Math.floor(t * 1.3) !== this._last) {
+          this._last = Math.floor(t * 1.3);
+          spawn({ x: 8 + Math.random() * 24, y: 14 + Math.random() * 10, vx: 0, vy: -14, c: Math.random() < 0.5 ? '#FFFFFF' : '#FFE680', life: 0.7 });
+        }
+      },
+    },
+    arcoiris: {
+      palette: { body: '#E5484D', shade: '#B83238', light: '#F07075', dark: '#6E1E22', blush: '#FFFFFF' },
+      pose(P, active, t) {                       // el color va dando la vuelta al arcoíris
+        const h = (t * 45) % 360;
+        Object.assign(C, { body: hsl(h, 70, 58), shade: hsl(h, 65, 42), light: hsl(h, 80, 76), dark: hsl(h, 60, 24) });
+      },
+    },
+
     // 🩵 Pal turquesa: el diseño de la versión para compartir (verde azulado y con antena), para la edición personal
     turquesa: {
       antenna: true,

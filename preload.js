@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('clawd', {
   inputFocus: on => ipcRenderer.send('input-focus', !!on),
   // 🛍️ personaje y accesorios
   setOutfit: p => ipcRenderer.send('outfit-set', p && typeof p === 'object' ? p : {}),
-  openShop: () => ipcRenderer.send('shop-open'),
+  openShop: tab => ipcRenderer.send('shop-open', String(tab || '')),
   focusSession: id => ipcRenderer.invoke('focus-session', String(id || '')),
   stopMark: id => ipcRenderer.invoke('stop-mark', String(id || '')),
   stopAllow: id => ipcRenderer.invoke('stop-allow', String(id || '')),

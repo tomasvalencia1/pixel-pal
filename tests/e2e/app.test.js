@@ -22,6 +22,9 @@ async function launch(edition) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), `pal-e2e-${edition}-`));
   const port = 17000 + Math.floor(Math.random() * 2000);
   fs.writeFileSync(path.join(home, 'token'), TOKEN);
+  // regalo de hoy ya dado y sin regalos al azar: así ninguna burbuja de regalo se cruza con otras pruebas
+  const hoy = new Date().toLocaleDateString('sv');
+  fs.writeFileSync(path.join(home, 'progress.json'), JSON.stringify({ gifts: { date: hoy, n: 99, daily: hoy, pending: 0 } }));
   // ntfy falso: recoge lo que Pal enviaría al móvil
   const ntfy = [];
   const ntfyServer = require('http').createServer((req, res) => { let b = ''; req.on('data', c => b += c); req.on('end', () => { try { ntfy.push(JSON.parse(b)); } catch { /* nada */ } res.end('{}'); }); });
@@ -377,6 +380,39 @@ for (const edition of ['shared', 'personal']) {
         await P.http('/usage', { method: 'POST', headers: P.auth(), body: JSON.stringify({ five_hour: { used_percentage: 40, resets_at: Date.now() / 1000 + 3600 }, at: Date.now() }) });
         assert.equal((await ev('lim-2', 'PreToolUse')).status, 204);
         await st.evaluate(() => window.ui.usageStopSet({ on: false }));
+      });
+
+      await t.test('🎁 regalos: rarezas, abrir, colección y Pal-dex', async () => {
+        // reparto de rarezas (sin temporada activa no salen los de temporada)
+        const dist = await P.page.evaluate(() => {
+          const n = { comun: 0, raro: 0, epico: 0, legendario: 0 };
+          for (let i = 0; i < 3000; i++) n[Boost.rollGift().drop]++;
+          return n;
+        });
+        assert.ok(dist.comun > dist.raro && dist.raro > dist.epico && dist.epico > dist.legendario && dist.legendario > 0, JSON.stringify(dist));
+        // regalo de nivel: épico o mejor
+        assert.ok(['epico', 'legendario'].includes(await P.page.evaluate(() => Boost.rollGift('epico').drop)));
+        // dar y abrir un regalo
+        const r = await P.page.evaluate(async () => {
+          Boost.giveGift('test');
+          const before = Boost.giftsPending();
+          const got = Boost.openGift();
+          return { before, after: Boost.giftsPending(), got, items: Boost.items() };
+        });
+        assert.equal(r.before, 1); assert.equal(r.after, 0);
+        assert.ok(r.items[r.got.id] >= 1, 'queda en tu colección');
+        // la tienda lo ve (tras guardarse) y deja ponérselo
+        await new Promise(res => setTimeout(res, 1500));
+        await P.page.evaluate(() => window.clawd.openShop('dex'));
+        const shop = await until(() => P.app.windows().find(w => w.url().includes('shop.html')));
+        await shop.waitForFunction(id => document.querySelectorAll('.item:not(.missing)').length >= 1 && /Colección [1-9]/.test(document.body.textContent), r.got.id, { timeout: 8000 });
+        const slot = await P.page.evaluate(id => CATALOG.collectibles().find(x => x.id === id).slot, r.got.id);
+        const out = await shop.evaluate(async p => (await window.shop.set(p)).outfit, { [slot]: r.got.id });
+        assert.equal(out[slot], r.got.id);
+        // lo que no tienes no se puede poner
+        const missing = await P.page.evaluate(have => CATALOG.collectibles().find(x => !have[x.id] && x.slot === 'hat'), r.items);
+        if (missing) assert.equal((await shop.evaluate(async p => (await window.shop.set(p)).outfit, { hat: missing.id })).hat, 'none');
+        await shop.evaluate(() => window.shop.set({ skin: 'clawd', hat: 'none', glasses: 'none', neck: 'none' }));
       });
 
       await t.test('sin errores en ninguna ventana', async () => {
