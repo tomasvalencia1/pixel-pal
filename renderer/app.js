@@ -701,6 +701,7 @@ function frame(ms) {
   const ex = window.Extras ? Extras.frame(now, dt, want, base, !!game) : null;
   if (ex && ex.want) want = ex.want;
   if (now < awakeUntil && want === 'sleeping') want = 'idle';   // 🫨 sacudido: sigue despierto
+  if (now < pet.until && !game) want = 'kiss';                   // 💕 te lanza un beso
   if (window.Boost && !game) want = Boost.want(want);   // 🍅 pomodoro: sentado y concentrado / estirándose
   const action = pickAction(now, want);
   ClawdSprite.draw(ctx, ms / 1000, action, {
@@ -830,13 +831,38 @@ function hitTest(x, y, inside = true) {
   }
 }
 
-document.addEventListener('mousemove', e => { if (!down) hitTest(e.clientX, e.clientY); });
+document.addEventListener('mousemove', e => { if (!down) hitTest(e.clientX, e.clientY); petTrack(e.screenX); });
+
+// 💕 Acariciar: con el ratón encima de Pal, muévelo de lado a lado (4 cambios de sentido en 2,5 s, sin hacer clic)
+const pet = { dir: 0, last: null, turns: [], cool: 0, until: 0 };
+function petTrack(x) {
+  if (!hoverClawd || down || (Play.cur && Play.cur.def.hover) || (window.Extras && Extras.flying && Extras.flying())) { pet.last = null; pet.dir = 0; pet.turns = []; return; }
+  if (pet.last === null) { pet.last = x; return; }
+  const dx = x - pet.last;
+  if (Math.abs(dx) < 3) return;
+  pet.last = x;
+  const dir = Math.sign(dx), now = Date.now();
+  if (dir === pet.dir) return;
+  if (pet.dir) pet.turns.push(now);
+  pet.dir = dir;
+  pet.turns = pet.turns.filter(t => now - t < 2500);
+  if (pet.turns.length >= 4 && now > pet.cool) { pet.turns = []; onPetted(); }
+}
+function onPetted() {
+  pet.cool = Date.now() + 12000;
+  ClawdSprite.trigger('love');
+  if (window.Sound) Sound.play('hello');
+  const asleep = desiredAction(Date.now()) === 'sleeping';
+  if (!asleep) pet.until = Date.now() + 2200;          // lanza un beso
+  Speech.say(Phrases.pick(asleep ? 'petSleep' : 'petted'), 2, { dur: 2600 });
+}
 window.clawd.onCursor(p => {
   cursor = { x: p.x, y: p.y };
   // Pal sigue el cursor con la mirada (coordenadas en píxeles de la rejilla del sprite)
   const r = canvas.getBoundingClientRect();
   look = { x: ((p.x - r.left) / r.width) * 40, y: ((p.y - r.top) / r.height) * 46 };
   if (!down) hitTest(p.x, p.y, p.inside);
+  petTrack(p.x);
 });
 
 // ---------- arrastrar, tocar y hacer clic en Pal ----------

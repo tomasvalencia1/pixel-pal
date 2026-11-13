@@ -25,10 +25,18 @@ const Characters = (() => {
   const MAP = {
     hello: 'hello', helloMorning: 'hello', helloAfternoon: 'hello', helloNight: 'hello',
     done: 'done', doneLong: 'done', allDone: 'done',
-    idle: 'idle', poke: 'poke', drag: 'drag', sleep: 'sleep',
+    idle: 'idle', poke: 'poke', drag: 'drag', sleep: 'sleep', petted: 'pet',
+  };
+  // 💕 cómo agradece las caricias cada personaje
+  const PET = {
+    bolt: ['Bip… caricia detectada. Felicidad al 100% 💙', 'Mis circuitos ronronean 🤖💕', 'Error 404: enfado no encontrado 😊'],
+    miso: ['Prrrr… prrrr… 😻', '¡Ahí, ahí! Detrás de la oreja 🐾', 'Miau 💕 (no pares)'],
+    nube: ['¡Uuuh~ qué gustito! 👻💕', 'Me haces flotar más alto ☁️', 'Si me sigues mimando me voy a evaporar de felicidad 🥰'],
+    rin: ['¡Croac! Eso me gusta 🐸💚', 'Me pongo verde… de felicidad', 'Un salto de alegría, ¡boing! 💚'],
+    chispa: ['¡Se me escapa una llamita de alegría! 🔥💕', 'Los dragones también queremos mimos 🐉', 'Prometo no quemarte… mucho 😇'],
   };
   function pickOwn(group) {
-    const list = skin && skin.phrases && skin.phrases[group];
+    const list = (skin && skin.phrases && skin.phrases[group]) || (group === 'pet' && skin && PET[skin.id]);
     return list && list.length ? list[Math.floor(Math.random() * list.length)] : '';
   }
   const originalPick = Phrases.pick;

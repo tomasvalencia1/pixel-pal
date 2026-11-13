@@ -175,6 +175,22 @@ for (const edition of ['shared', 'personal']) {
         assert.ok(floorOk.winBottom >= floorOk.bottom - 40, JSON.stringify(floorOk));
       });
 
+      await t.test('💕 acariciarlo con el ratón: corazones, beso y frase', async () => {
+        await until(() => P.page.evaluate(() => !Speech.speaking()), 15000, 200);
+        const r = await P.page.evaluate(() => {
+          hoverClawd = true; awakeUntil = Date.now() + 60000;      // ratón encima y despierto
+          for (const x of [100, 130, 100, 130, 100, 130, 100]) petTrack(x);
+          return { kiss: pet.until > Date.now(), cool: pet.cool > Date.now() };
+        });
+        assert.deepEqual(r, { kiss: true, cool: true });
+        await new Promise(r => setTimeout(r, 1500));
+        assert.match(await P.page.evaluate(() => document.getElementById('bubble').textContent), /💕|🥰|💖|gustito|mimos/);
+        // en el enfriamiento no se repite enseguida
+        const again = await P.page.evaluate(() => { const c = pet.cool; for (const x of [100, 130, 100, 130, 100, 130]) petTrack(x); return pet.cool === c; });
+        assert.equal(again, true);
+        await P.page.evaluate(() => { hoverClawd = false; });
+      });
+
       await t.test('uso del plan: /statusline (curl) y /usage (hooks de Node)', async () => {
         const r = await P.http('/statusline', { method: 'POST', headers: P.auth(), body: JSON.stringify({ rate_limits: { five_hour: { used_percentage: 40 }, seven_day: { used_percentage: 10 } } }) });
         assert.match(await r.text(), /sesión 60% libre · semana 90% libre/);
