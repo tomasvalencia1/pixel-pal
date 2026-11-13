@@ -322,8 +322,29 @@ const Extras = (() => {
     const min = Math.max(5, Math.round((Date.now() - away.since) / 60000));
     ClawdSprite.trigger('hello');
     Sound.play('hello');
-    const lines = away.tasks > 0 ? [Phrases.pick('backWork', { n: away.tasks })] : undefined;
-    Speech.say(Phrases.pick('back', { min }), 3, { dur: 5000, lines });
+    // 📋 Mientras no estabas: qué pasó en cada sesión (lo urgente primero)
+    const since = away.since;
+    const items = [];
+    for (const s of state.sessions || []) {
+      if ((s.lastEvent || 0) < since) continue;
+      const t = s.tasks || [], d = t.filter(x => x.status === 'completed').length;
+      if (s.status === 'waiting') items.push([0, `✋ ${s.project} espera tu permiso`, s]);
+      else if (s.status === 'limited') items.push([1, `⏳ ${s.project}: llegó al límite de uso`, s]);
+      else if (s.status === 'done' && (s.doneAt || 0) >= since) items.push([2, `✅ ${s.project} terminó${t.length ? ` · ${d}/${t.length} tareas` : ''}`, s]);
+      else if (s.status === 'working' || s.status === 'thinking') items.push([3, `⚙️ ${s.project} sigue trabajando${t.length ? ` · ${d}/${t.length}` : ''}`, s]);
+    }
+    items.sort((a, b) => a[0] - b[0]);
+    const lines = items.slice(0, 4).map(x => x[1]);
+    if (items.length > 4) lines.push(`…y ${items.length - 4} más en el panel`);
+    if (!lines.length && away.tasks > 0) lines.push(Phrases.pick('backWork', { n: away.tasks }));
+    // botón para ir directo a la sesión que te necesita
+    const need = items.find(x => x[0] <= 1 && x[2].win);
+    const opts = { dur: need ? 15000 : 4000 + lines.length * 1500, lines: lines.length ? lines : undefined };
+    if (need) {
+      opts.buttons = [{ label: `↗ Ir a ${need[2].project}`, value: need[2].id, primary: true }, { label: 'Luego', value: 'no' }];
+      opts.onAnswer = v => { if (v && v !== 'no') window.clawd.focusSession(v); };
+    }
+    Speech.say(Phrases.pick(lines.length ? 'backNews' : 'back', { min }), 3, opts);
   }
   function onIdle(s) {
     // viendo un vídeo o escuchando música sin tocar nada no cuenta como "te fuiste"

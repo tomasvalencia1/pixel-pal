@@ -144,6 +144,22 @@ for (const edition of ['shared', 'personal']) {
         assert.ok(await until(() => P.page.evaluate(() => document.getElementById('bubble').classList.contains('hidden'))), 'la pregunta desaparece');
       });
 
+      await t.test('📋 al volver, cuenta qué pasó mientras no estabas', async () => {
+        const ev = (id, cwd, b) => P.http('/event', { method: 'POST', headers: P.auth(), body: JSON.stringify({ session_id: id, cwd: 'C:/p/' + cwd, ...b }) });
+        await ev('aw-1', 'informe', { hook_event_name: 'UserPromptSubmit' });
+        await ev('aw-1', 'informe', { hook_event_name: 'Stop' });
+        await ev('aw-2', 'servidor', { hook_event_name: 'UserPromptSubmit' });
+        await ev('aw-2', 'servidor', { hook_event_name: 'Notification', message: 'Claude needs your permission to use Bash' });
+        await until(() => P.page.evaluate(() => state.sessions.some(s => s.id === 'aw-2' && s.status === 'waiting')));
+        await until(() => P.page.evaluate(() => !Speech.speaking()), 15000, 200);   // que no haya otra burbuja
+        await P.http('/preview?a=x:back', { headers: P.auth() });
+        await new Promise(r => setTimeout(r, 2500));
+        const txt = await P.page.evaluate(() => document.getElementById('bubble').textContent);
+        assert.match(txt, /✋ servidor espera tu permiso/);
+        assert.match(txt, /✅ informe terminó/);
+        assert.ok(txt.indexOf('servidor') < txt.indexOf('informe'), 'lo urgente primero');
+      });
+
       await t.test('uso del plan: /statusline (curl) y /usage (hooks de Node)', async () => {
         const r = await P.http('/statusline', { method: 'POST', headers: P.auth(), body: JSON.stringify({ rate_limits: { five_hour: { used_percentage: 40 }, seven_day: { used_percentage: 10 } } }) });
         assert.match(await r.text(), /sesión 60% libre · semana 90% libre/);

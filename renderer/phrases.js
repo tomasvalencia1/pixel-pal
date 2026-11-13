@@ -111,6 +111,7 @@ const PHRASES = {
   // tú (6, 8, 10)
   back: ['¡Volviste! Estuviste fuera {min} min 👋', '¡Hola otra vez! {min} min sin verte', '¡Ya estás aquí! Te eché de menos 🥺'],
   backWork: ['Mientras no estabas se completaron {n} tareas ✅'],
+  backNews: ['¡Volviste! En estos {min} min pasó esto:', '¡Hola otra vez! Mientras no estabas ({min} min):', '¡Ya estás aquí! Te cuento lo que pasó:'],
   night: ['Ya son las 6:30… ¡gorrito de noche puesto! 🌙', 'Modo noche activado 🌙', 'Se hace de noche, ¿eh? 🌙'],
   typeAlong: ['¡Tecleamos juntos! ⌨️', 'Yo también escribo 🦀⌨️', '¡Qué rápido escribes!'],
   typeLong: ['Llevas un buen rato tecleando, ¿estiramos? 🙆', 'Tus dedos necesitan un descanso 😅'],
