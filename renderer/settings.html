@@ -54,6 +54,20 @@
       <div class="msg" id="permMsg"></div>
     </div>
 
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div><b>🛑 Parar sesiones por uso</b> <span id="usPill" class="pill no">…</span></div>
+          <div class="muted small">Cuando la sesión de 5 h llegue al <input type="number" id="usFive" min="0" max="100" class="num">% o la semana al <input type="number" id="usWeek" min="0" max="100" class="num">%, Pal para la sesión (Claude te dice por qué) y no deja enviarle más mensajes hasta que se reinicie el límite o le digas «Dejarla seguir». 0 = sin límite.</div>
+          <div class="row small provider" style="margin-top:6px">
+            <label><input type="radio" name="usScope" value="all"> Todas las sesiones</label>
+            <label><input type="radio" name="usScope" value="marked"> Solo las que marque con 🛑 en el panel</label>
+          </div>
+        </div>
+        <label class="switch"><input type="checkbox" id="usOn"><span></span></label>
+      </div>
+    </div>
+
     <h3 id="phone">📱 Avisos al móvil</h3>
     <div class="card">
       <div class="row">

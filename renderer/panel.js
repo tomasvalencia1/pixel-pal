@@ -81,6 +81,7 @@ const Panel = (() => {
           <img class="mini" alt="" src="${miniPal(s.status, Math.floor(now / 1000) % 2)}">
           <span class="name">${esc(s.project)}</span>
           ${s.win ? `<span class="app-chip">↗ ${esc(s.win.app)}</span>` : ''}
+          ${window.UsageStop && UsageStop.on && UsageStop.scope === 'marked' ? `<button class="stop-btn${s.stopMark ? ' on' : ''}" type="button" data-stop="${esc(s.id)}" title="${s.stopMark ? 'Pal la parará al llegar al límite de uso (clic para quitar)' : 'Marcar: Pal la parará al llegar al límite de uso'}">🛑</button>` : ''}
           <span class="ago">${ago(now - s.lastEvent)}</span>
         </div>
         <div class="status ${s.status}">${esc(statusText(s))}</div>

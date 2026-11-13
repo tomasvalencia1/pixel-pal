@@ -193,6 +193,42 @@ function needsWindow(ev) {
   return !s || (!s.win && Date.now() - (s.winCheckedAt || 0) > 120000);
 }
 
+// ---------- 🛑 Parar sesiones por uso ----------
+// Cuando el uso de la sesión de 5 h o de la semana llega al % que elijas, Pal responde al siguiente evento de esa
+// sesión con «continue: false» (Claude se para y te dice por qué) o bloquea el mensaje nuevo. Todas o solo las marcadas.
+const usageStopCfg = () => ({ on: false, five: 90, week: 95, scope: 'all', ...(config.usageStop || {}) });
+function usageOver(now = Date.now()) {
+  const c = usageStopCfg();
+  const u = usage || {};
+  const live = w => w && typeof w.used_percentage === 'number' && (!w.resets_at || w.resets_at * 1000 > now);
+  if (c.five > 0 && live(u.five_hour) && u.five_hour.used_percentage >= c.five) return { kind: 'five', pct: Math.round(u.five_hour.used_percentage), limit: c.five, resets: u.five_hour.resets_at ? u.five_hour.resets_at * 1000 : now + 3600000 };
+  if (c.week > 0 && live(u.seven_day) && u.seven_day.used_percentage >= c.week) return { kind: 'week', pct: Math.round(u.seven_day.used_percentage), limit: c.week, resets: u.seven_day.resets_at ? u.seven_day.resets_at * 1000 : now + 86400000 };
+  return null;
+}
+function stopVerdict(s, now = Date.now()) {
+  const c = usageStopCfg();
+  if (!c.on || !s) return null;
+  if (c.scope === 'marked' && !s.stopMark) return null;
+  if ((s.stopAllowUntil || 0) > now) return null;          // le dijiste «déjala seguir»
+  const o = usageOver(now);
+  if (!o) return null;
+  const what = o.kind === 'five' ? 'la sesión de 5 h' : 'la semana';
+  return { ...o, msg: `🛑 Pixel Pal paró esta sesión: ${what} va por el ${o.pct}% de uso (tu límite: ${o.limit}%). Puedes dejarla seguir desde Pal.` };
+}
+// Respuesta para Claude Code según el evento
+function stopReply(name, v) {
+  if (name === 'UserPromptSubmit') return { decision: 'block', reason: v.msg };
+  const out = { continue: false, stopReason: v.msg };
+  if (name === 'PreToolUse') out.hookSpecificOutput = { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: v.msg };
+  return out;
+}
+function announceStop(s, v) {
+  if (s.stopSaidFor === v.resets) return;                  // una vez por sesión y periodo
+  s.stopSaidFor = v.resets;
+  sendCommand({ usageStop: { id: s.id, project: s.project, kind: v.kind, pct: v.pct, limit: v.limit } });
+  phone.event('error', s, { limit: true });
+}
+
 // ---------- 🤫 No molestar ----------
 // Pal se calla (sin burbujas salvo lo urgente, sin sonidos, sin juegos) si: lo activas a mano, estás en tus horas de
 // silencio, o Windows está en No molestar / presentación / juego a pantalla completa (si lo respetas).
@@ -688,7 +724,24 @@ function startServer() {
       req.on('end', () => {
         let ev = null;
         try { ev = JSON.parse(body.replace(/^\uFEFF/, '')); } catch { /* json roto */ }
-        const finish = () => { try { if (ev) handleEvent(ev); } catch { /* nada */ } res.writeHead(204); res.end(); };
+        const finish = () => {
+          try { if (ev) handleEvent(ev); } catch { /* nada */ }
+          // 🛑 ¿hay que parar esta sesión por uso?
+          const name = ev && ev.hook_event_name;
+          if (ev && ['PreToolUse', 'PostToolUse', 'UserPromptSubmit'].includes(name)) {
+            const s = sessions.get(ev.session_id);
+            const v = stopVerdict(s);
+            if (v) {
+              s.status = 'limited';
+              s.message = `Parada por Pal: ${v.kind === 'five' ? '5 h' : 'semana'} al ${v.pct}%`;
+              changed();
+              announceStop(s, v);
+              res.writeHead(200, { 'content-type': 'application/json' });
+              return res.end(JSON.stringify(stopReply(name, v)));
+            }
+          }
+          res.writeHead(204); res.end();
+        };
         if (!ev || !needsWindow(ev)) return finish();
         const s0 = sessions.get(ev.session_id);
         if (s0) s0.winCheckedAt = Date.now();
@@ -1091,6 +1144,22 @@ function setupIpc() {
     if (ok && decision === 'pass' && p) { const s = sessions.get(p.sessionId); if (s && s.win) watchAsk(`focus {id} ${Number(s.win.hwnd) || 0}`, 1500); }
     return ok;
   });
+  ipcMain.handle('stop-mark', (_e, id) => {
+    const s = sessions.get(String(id || ''));
+    if (!s) return false;
+    s.stopMark = !s.stopMark;
+    changed();
+    return s.stopMark;
+  });
+  ipcMain.handle('stop-allow', (_e, id) => {
+    const s = sessions.get(String(id || ''));
+    const o = usageOver();
+    if (!s) return false;
+    s.stopAllowUntil = o ? o.resets : Date.now() + 3600000;   // hasta que se reinicie ese límite
+    if (s.status === 'limited') { s.status = 'idle'; s.message = ''; }
+    changed();
+    return true;
+  });
   ipcMain.handle('focus-session', async (_e, id) => {
     const s = sessions.get(String(id || ''));
     if (!s || !s.win) return { ok: false, reason: 'unknown' };
@@ -1157,7 +1226,7 @@ function prefsPayload() {
     sit: !!config.sit, dance: config.dance !== false, sound: config.sound !== false, tts: !!config.tts, breaks: config.breaks !== false, outfit: getOutfit(),
     pomoFocus: config.pomoFocus || 25, pomoBreak: config.pomoBreak || 5, careEvery: config.careEvery || 45,
     ride: config.ride || 'ask', fsHide: config.fsHide || 'ask', appModes: config.appModes || {},
-    chatty: Number.isInteger(config.chatty) ? config.chatty : 2, motion: config.motion || 'auto', quiet, size: config.size || 'normal',
+    chatty: Number.isInteger(config.chatty) ? config.chatty : 2, motion: config.motion || 'auto', quiet, size: config.size || 'normal', usageStop: usageStopCfg(),
   };
 }
 
@@ -1280,6 +1349,7 @@ function uiStatus() {
     hooks: hooks.status(PORT, TOKEN),
     calm: { dndUntil: Number(config.dndUntil) || 0, quietHours: config.quietHours || { on: false, from: '22:00', to: '08:00' }, respectFocus: config.respectFocus !== false, chatty: Number.isInteger(config.chatty) ? config.chatty : 2, hideCapture: !!config.hideCapture, motion: config.motion || 'auto', size: config.size || 'normal', quiet },
     privacy: { dir: DIR, debugLog: !!config.debugLog, phone: !!(config.phone && config.phone.on), phoneProvider: (config.phone && config.phone.provider) || 'app', haiku: fs.existsSync(path.join(DIR, 'brain-key.bin')) },
+    usageStop: usageStopCfg(),
     perm: { approve: config.permApprove !== false, wait: Number(config.permWait ?? 20), installed: hooks.permissionInstalled(PORT, TOKEN) },
     autostart: getAutostart(),
     onboarded: !!config.onboarded,
@@ -1297,6 +1367,19 @@ function setupUiIpc() {
     catch (e) { return { ok: false, error: e.message }; }
   });
   ipcMain.handle('ui:set-autostart', (_e, on) => { setAutostart(!!on); return uiStatus(); });
+  // 🛑 parar sesiones por uso
+  ipcMain.handle('ui:usage-stop-set', (_e, p) => {
+    p = p && typeof p === 'object' ? p : {};
+    const c = usageStopCfg();
+    const pct = v => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+    if ('on' in p) c.on = !!p.on;
+    if ('five' in p) c.five = pct(p.five);
+    if ('week' in p) c.week = pct(p.week);
+    if (p.scope === 'all' || p.scope === 'marked') c.scope = p.scope;
+    saveConfig({ usageStop: c });
+    if (win && !win.isDestroyed()) win.webContents.send('prefs', prefsPayload());
+    return uiStatus();
+  });
   // 🔒 privacidad
   ipcMain.handle('ui:open-data', () => { require('electron').shell.openPath(DIR); return true; });
   ipcMain.handle('ui:clear-history', () => {

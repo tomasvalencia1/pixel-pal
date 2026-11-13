@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('ui', {
   preview: action => ipcRenderer.invoke('ui:preview', String(action || '')),
   open: page => ipcRenderer.invoke('ui:open', page),
   restart: () => ipcRenderer.send('ui:restart'),
+  usageStopSet: p => ipcRenderer.invoke('ui:usage-stop-set', p && typeof p === 'object' ? p : {}),
   openData: () => ipcRenderer.invoke('ui:open-data'),
   clearHistory: () => ipcRenderer.invoke('ui:clear-history'),
   calmSet: p => ipcRenderer.invoke('ui:calm-set', p && typeof p === 'object' ? p : {}),

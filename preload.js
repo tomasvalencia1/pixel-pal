@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('clawd', {
   setOutfit: p => ipcRenderer.send('outfit-set', p && typeof p === 'object' ? p : {}),
   openShop: () => ipcRenderer.send('shop-open'),
   focusSession: id => ipcRenderer.invoke('focus-session', String(id || '')),
+  stopMark: id => ipcRenderer.invoke('stop-mark', String(id || '')),
+  stopAllow: id => ipcRenderer.invoke('stop-allow', String(id || '')),
   permAnswer: (id, decision) => ipcRenderer.invoke('perm-answer', { id: String(id || ''), decision: String(decision || 'pass') }),
   // 💬 hablar con Pal
   talkAsk: (text, ctx) => ipcRenderer.invoke('talk-ask', String(text || ''), String(ctx || '')),

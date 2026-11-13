@@ -349,6 +349,36 @@ for (const edition of ['shared', 'personal']) {
         assert.equal(r.normal.extra, '0px');
       });
 
+      await t.test('🛑 parar sesiones al llegar al % de uso (todas, marcadas y «dejarla seguir»)', async () => {
+        await P.page.evaluate(() => window.clawd.openUi('settings'));
+        const st = await until(() => P.app.windows().find(w => /settings.html/.test(w.url())));
+        await st.waitForFunction(() => window.ui && window.ui.usageStopSet, null, { timeout: 8000 });
+        await st.evaluate(() => window.ui.usageStopSet({ on: true, five: 80, week: 0, scope: 'all' }));
+        await P.http('/usage', { method: 'POST', headers: P.auth(), body: JSON.stringify({ five_hour: { used_percentage: 85, resets_at: Date.now() / 1000 + 3600 }, at: Date.now() }) });
+        const ev = (id, name, extra = {}) => P.http('/event', { method: 'POST', headers: P.auth(), body: JSON.stringify({ session_id: id, cwd: 'C:/p/limite', hook_event_name: name, tool_name: 'Bash', ...extra }) });
+        const body = async r => { const x = await r; return x.status === 200 ? JSON.parse(await x.text()) : null; };
+        // trabajando: se para
+        const pre = await body(ev('lim-1', 'PreToolUse'));
+        assert.equal(pre.continue, false);
+        assert.ok(pre.stopReason.includes('5 h va por el 85% de uso (tu límite: 80%)'), pre.stopReason);
+        assert.equal(pre.hookSpecificOutput.permissionDecision, 'deny');
+        // mensaje nuevo: bloqueado
+        const ups = await body(ev('lim-1', 'UserPromptSubmit'));
+        assert.equal(ups.decision, 'block');
+        // «Dejarla seguir»
+        assert.equal(await P.page.evaluate(() => window.clawd.stopAllow('lim-1')), true);
+        assert.equal((await ev('lim-1', 'PreToolUse')).status, 204);
+        // solo las marcadas: la no marcada sigue; al marcarla, se para
+        await st.evaluate(() => window.ui.usageStopSet({ scope: 'marked' }));
+        assert.equal((await ev('lim-2', 'PreToolUse')).status, 204);
+        assert.equal(await P.page.evaluate(() => window.clawd.stopMark('lim-2')), true);
+        assert.equal((await body(ev('lim-2', 'PostToolUse'))).continue, false);
+        // por debajo del límite, nada
+        await P.http('/usage', { method: 'POST', headers: P.auth(), body: JSON.stringify({ five_hour: { used_percentage: 40, resets_at: Date.now() / 1000 + 3600 }, at: Date.now() }) });
+        assert.equal((await ev('lim-2', 'PreToolUse')).status, 204);
+        await st.evaluate(() => window.ui.usageStopSet({ on: false }));
+      });
+
       await t.test('sin errores en ninguna ventana', async () => {
         await wait(500);
         assert.deepEqual(P.errors, []);

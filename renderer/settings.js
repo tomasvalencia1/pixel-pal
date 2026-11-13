@@ -34,6 +34,7 @@ function render(s) {
   permRender(s);
   calmRender(s);
   privRender(s);
+  usRender(s);
   $('autostart').checked = !!s.autostart;
   $('autostartNote').hidden = !!s.packaged;
   $('version').textContent = s.version || '—';
@@ -62,6 +63,22 @@ $('hooksBtn').addEventListener('click', async () => {
     btn.disabled = false;
   }
 });
+
+// ---------- 🛑 parar sesiones por uso ----------
+function usRender(s) {
+  const u = s.usageStop || {};
+  $('usOn').checked = !!u.on;
+  $('usFive').value = u.five ?? 90;
+  $('usWeek').value = u.week ?? 95;
+  for (const r of document.querySelectorAll('input[name=usScope]')) r.checked = r.value === (u.scope || 'all');
+  $('usPill').className = u.on ? 'pill ok' : 'pill no';
+  $('usPill').textContent = u.on ? (u.scope === 'marked' ? 'Activado (marcadas)' : 'Activado') : 'Apagado';
+}
+const usSet = async p => render(await window.ui.usageStopSet(p));
+$('usOn').addEventListener('change', e => usSet({ on: e.target.checked }));
+$('usFive').addEventListener('change', e => usSet({ five: e.target.value }));
+$('usWeek').addEventListener('change', e => usSet({ week: e.target.value }));
+for (const r of document.querySelectorAll('input[name=usScope]')) r.addEventListener('change', () => usSet({ scope: r.value }));
 
 // ---------- 🔒 privacidad ----------
 function privRender(s) {

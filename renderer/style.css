@@ -370,3 +370,8 @@ body.talk-open #bubble:not(.ask), body.talk-open #caption { visibility: hidden; 
 
 /* 🤫 en silencio: el botón se nota activo */
 body.quiet #dndbtn { background: rgba(167, 155, 245, 0.22); border-color: rgba(167, 155, 245, 0.6); }
+
+/* 🛑 marcar sesiones para pararlas al llegar al límite de uso */
+.stop-btn { font-size: 11px; line-height: 1; padding: 2px 4px; margin-left: 2px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.12); background: none; cursor: pointer; opacity: 0.35; filter: grayscale(1); }
+.stop-btn:hover { opacity: 0.8; }
+.stop-btn.on { opacity: 1; filter: none; border-color: rgba(229, 72, 77, 0.6); background: rgba(229, 72, 77, 0.15); }

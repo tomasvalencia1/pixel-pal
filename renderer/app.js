@@ -3,8 +3,19 @@ const canvas = document.getElementById('clawd');
 const caption = document.getElementById('caption');
 const panel = document.getElementById('panel');
 const cards = document.getElementById('cards');
+// 🛑 parar por uso: configuración (llega con las preferencias) y botón de cada sesión
+window.UsageStop = { on: false, scope: 'all' };
+cards.addEventListener('click', async e => {
+  const b = e.target.closest('[data-stop]');
+  if (!b) return;
+  e.stopPropagation();
+  const on = await window.clawd.stopMark(b.dataset.stop);
+  b.classList.toggle('on', !!on);
+  Speech.say(on ? '🛑 Vale: pararé esa sesión si llega al límite de uso' : 'Vale, esa sesión puede seguir aunque llegue al límite', 2, { dur: 2600 });
+}, true);
 // 🪟 clic en una sesión → su ventana
 cards.addEventListener('click', async e => {
+  if (e.target.closest('[data-stop]')) return;
   const c = e.target.closest('.card[data-id]');
   if (!c) return;
   e.stopPropagation();
@@ -860,6 +871,7 @@ window.clawd.onPrefs(p => applyPrefs(p, false));
 function applyPrefs(p, speak) {
   if (!p) return;
   Calm.set(p);
+  if (p.usageStop) { window.UsageStop = p.usageStop; renderPanel(); }
   if ('size' in p) applySize(p.size);
   if ('sit' in p) setSitting(!!p.sit, speak && p.sit !== sitting);
   if ('dance' in p) setDance(p.dance !== false, false);
@@ -1069,6 +1081,16 @@ window.clawd.onCommand(c => {
       onAnswer: v => { if (v) window.clawd.permAnswer(p.id, v); },
     });
   } else if (c && c.permDone) Speech.drop(c.permDone);
+  if (c && c.usageStop) {
+    const u = c.usageStop;
+    ClawdSprite.trigger('oops');
+    if (window.Sound) Sound.play('alert');
+    Speech.say(`🛑 Paré ${u.project}: ${u.kind === 'five' ? 'la sesión de 5 h' : 'la semana'} va por el ${u.pct}% (tu límite: ${u.limit}%)`, 3, {
+      alert: true, dur: 15000,
+      buttons: [{ label: 'Dejarla seguir', value: 'go' }, { label: 'Vale 👍', value: 'ok', primary: true }],
+      onAnswer: v => { if (v === 'go') window.clawd.stopAllow(u.id).then(() => Speech.say(`Vale, ${u.project} puede seguir hasta que se reinicie el límite`, 2, { dur: 3000 })); },
+    });
+  }
 });
 window.clawd.onCommand(c => {
   if (c === 'toggle-pin') { pinned = !pinned; updatePanel(); }
