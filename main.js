@@ -959,6 +959,7 @@ function setupIpc() {
     if ('sit' in p) patch.sit = !!p.sit;
     if ('dance' in p) patch.dance = !!p.dance;
     if ('sound' in p) patch.sound = !!p.sound;
+    if ('tts' in p) patch.tts = !!p.tts;
     if ('breaks' in p) patch.breaks = !!p.breaks;
     const num = (v, a, b) => Number.isFinite(Number(v)) && Number(v) >= a && Number(v) <= b;
     if ('permApprove' in p) patch.permApprove = !!p.permApprove;
@@ -1042,6 +1043,7 @@ function setupIpc() {
       { type: 'checkbox', label: 'Bailar con música', checked: config.dance !== false, click: m => { saveConfig({ dance: m.checked }); send({ dance: m.checked }); } },
       { type: 'checkbox', label: 'Bailar también con vídeos', checked: !!config.musicAll, click: m => { saveConfig({ musicAll: m.checked }); setMedia(lastMediaRaw); } },
       { type: 'checkbox', label: 'Sonidos', checked: config.sound !== false, click: m => { saveConfig({ sound: m.checked }); send({ prefs: prefsPayload() }); } },
+      { type: 'checkbox', label: '🗣️ Voz de Pal (lee en voz alta lo importante)', checked: !!config.tts, click: m => { saveConfig({ tts: m.checked }); send({ prefs: prefsPayload() }); if (m.checked) send({ say: '¡Hola! Ahora también te hablo en voz alta 🦀' }); } },
       { label: 'Subirse a ventanas', submenu: radio('ride', [['ask', 'Preguntarme'], ['always', 'Siempre'], ['never', 'Nunca']]) },
       { label: 'Pantalla completa', submenu: radio('fsHide', [['ask', 'Preguntarme'], ['always', 'Esconderse siempre'], ['never', 'No esconderse']]) },
       { label: 'Olvidar los modos por app', click: () => { saveConfig({ appModes: {} }); send({ prefs: prefsPayload() }); } },
@@ -1068,7 +1070,7 @@ function setupIpc() {
 
 function prefsPayload() {
   return {
-    sit: !!config.sit, dance: config.dance !== false, sound: config.sound !== false, breaks: config.breaks !== false, outfit: getOutfit(),
+    sit: !!config.sit, dance: config.dance !== false, sound: config.sound !== false, tts: !!config.tts, breaks: config.breaks !== false, outfit: getOutfit(),
     pomoFocus: config.pomoFocus || 25, pomoBreak: config.pomoBreak || 5, careEvery: config.careEvery || 45,
     ride: config.ride || 'ask', fsHide: config.fsHide || 'ask', appModes: config.appModes || {},
   };

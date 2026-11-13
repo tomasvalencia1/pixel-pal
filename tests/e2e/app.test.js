@@ -179,6 +179,7 @@ for (const edition of ['shared', 'personal']) {
         await until(() => P.page.evaluate(() => !Speech.speaking()), 15000, 200);
         const r = await P.page.evaluate(() => {
           hoverClawd = true; awakeUntil = Date.now() + 60000;      // ratón encima y despierto
+          pet.cool = 0; pet.turns = []; pet.dir = 0; pet.last = null;  // por si tu ratón real pasó por encima
           for (const x of [100, 130, 100, 130, 100, 130, 100]) petTrack(x);
           return { kiss: pet.until > Date.now(), cool: pet.cool > Date.now() };
         });
@@ -189,6 +190,23 @@ for (const edition of ['shared', 'personal']) {
         const again = await P.page.evaluate(() => { const c = pet.cool; for (const x of [100, 130, 100, 130, 100, 130]) petTrack(x); return pet.cool === c; });
         assert.equal(again, true);
         await P.page.evaluate(() => { hoverClawd = false; });
+      });
+
+      await t.test('🗣️ voz: cada personaje murmura distinto y la voz real se puede activar', async () => {
+        const r = await P.page.evaluate(async () => {
+          const out = {};
+          for (const id of ['clawd', 'bolt', 'miso', 'nube', 'rin', 'chispa']) { Sound.setVoice(id); Sound.blip('a'); }
+          applyPrefs({ tts: true }, false);   // como lo aplica el menú del clic derecho
+          for (let i = 0; i < 40 && !Voice.isOn(); i++) await new Promise(r => setTimeout(r, 100));
+          out.on = Voice.isOn();
+          out.voices = (speechSynthesis.getVoices() || []).filter(v => /^es/i.test(v.lang)).length;
+          applyPrefs({ tts: false }, false);
+          for (let i = 0; i < 40 && Voice.isOn(); i++) await new Promise(r => setTimeout(r, 100));
+          out.off = !Voice.isOn();
+          return out;
+        });
+        assert.equal(r.on, true, 'se activa desde las preferencias');
+        assert.equal(r.off, true, 'y se apaga');
       });
 
       await t.test('uso del plan: /statusline (curl) y /usage (hooks de Node)', async () => {

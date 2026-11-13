@@ -40,13 +40,30 @@ const Sound = (() => {
       src.start();
     } catch { /* sin audio */ }
   }
+  // 🗣️ Murmullo al hablar, distinto para cada personaje. Cada letra suena siempre igual (parecen palabras).
+  const VOICES = {
+    clawd:   { base: 520, spread: 260, type: 'square',   dur: 0.035, vol: 0.015 },
+    bolt:    { base: 170, spread: 90,  type: 'square',   dur: 0.045, vol: 0.016, steps: 6 },               // robot: tonos escalonados
+    miso:    { base: 880, spread: 380, type: 'sine',     dur: 0.055, vol: 0.022, slide: 1.25 },            // maullidos
+    nube:    { base: 620, spread: 200, type: 'sine',     dur: 0.075, vol: 0.018, slide: 0.8 },             // fantasma: «uuu»
+    rin:     { base: 150, spread: 90,  type: 'triangle', dur: 0.05,  vol: 0.03,  slide: 0.7 },             // croac
+    chispa:  { base: 420, spread: 240, type: 'sawtooth', dur: 0.035, vol: 0.012, crackle: true },          // chisporroteo
+  };
+  let voice = VOICES.clawd;
   let lastBlip = 0;
-  function blip() {
+  function blip(ch) {
     const n = performance.now();
     if (n - lastBlip < 45) return;
     lastBlip = n;
-    tone(520 + Math.random() * 260, 0.035, 'square', 0.015);
+    const v = voice;
+    const code = ch ? String(ch).toLowerCase().charCodeAt(0) : Math.floor(Math.random() * 100);
+    let k = ((code * 37) % 97) / 97;                                  // 0..1, fijo para cada letra
+    if (v.steps) k = Math.round(k * v.steps) / v.steps;
+    const freq = v.base + k * v.spread;
+    tone(freq, v.dur, v.type, v.vol, 0, v.slide ? freq * v.slide : null);
+    if (v.crackle && Math.random() < 0.3) noise(0.02, 0.02);
   }
+  const setVoice = id => { voice = VOICES[id] || VOICES.clawd; };
   const SFX = {
     pop: () => tone(660, 0.08, 'sine', 0.06, 0, 990),
     ding: () => { tone(1046, 0.25, 'sine', 0.05); tone(1568, 0.3, 'sine', 0.035, 0.08); },
@@ -61,7 +78,7 @@ const Sound = (() => {
     land: () => { noise(0.08, 0.07); tone(120, 0.12, 'sine', 0.07); },
     charge: () => [523, 784, 1046].forEach((f, i) => tone(f, 0.12, 'sine', 0.05, i * 0.07)),
   };
-  return { blip, play: n => { if (SFX[n]) SFX[n](); }, set: v => { on = !!v; }, isOn: () => on };
+  return { blip, setVoice, play: n => { if (SFX[n]) SFX[n](); }, set: v => { on = !!v; }, isOn: () => on };
 })();
 
 const Extras = (() => {
@@ -608,6 +625,7 @@ const Extras = (() => {
   function setPrefs(p) {
     prefs = { ...prefs, ...p, appModes: p.appModes || prefs.appModes };
     if ('sound' in p) setSound(p.sound !== false);
+    if ('tts' in p && window.Voice) Voice.set(!!p.tts);
   }
 
   // Pruebas: /preview?a=x:ride | x:hide | x:summary | x:back | x:photo | x:costume:santa | x:dev:push | x:bat:15 | x:mode

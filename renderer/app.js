@@ -152,11 +152,12 @@ const Speech = (() => {
       }
       el.appendChild(row);
     }
+    if (window.Voice && priority >= 2) Voice.say(text);   // 🗣️ voz real (si está activada)
     clearInterval(typer);
     typer = setInterval(() => {
       i += 1;
       txt.textContent = chars.slice(0, i).join('');
-      if (window.Sound && i % 3 === 1 && chars[i - 1] !== ' ') Sound.blip();
+      if (window.Sound && !(window.Voice && Voice.speaking()) && i % 3 === 1 && chars[i - 1] !== ' ') Sound.blip(chars[i - 1]);
       if (i >= chars.length) clearInterval(typer);
     }, 22);
     clearTimeout(hideTimer);
@@ -175,6 +176,41 @@ const Speech = (() => {
   return { say, speaking, asking, sinceLast, drop };
 })();
 const say = (key, priority = 2, opts = {}, vars = {}) => Speech.say(Phrases.pick(key, vars), priority, opts);
+
+// 🗣️ Voz real opcional: lee en voz alta las burbujas importantes con la voz de Windows (en español si la hay),
+// con el tono de cada personaje. Apagada por defecto (menú del clic derecho → Voz de Pal).
+const Voice = (() => {
+  let on = false;
+  const TONE = { clawd: [1, 1.05], bolt: [0.55, 0.92], miso: [1.7, 1.1], nube: [1.35, 0.85], rin: [0.6, 0.95], chispa: [1.25, 1.15] };
+  let skinId = 'clawd';
+  const synth = window.speechSynthesis;
+  const pickVoice = () => {
+    const vs = synth ? synth.getVoices() : [];
+    return vs.find(v => /^es(-|_)/i.test(v.lang) && /helena|laura|sabina|elvira|dalia|paloma/i.test(v.name)) || vs.find(v => /^es/i.test(v.lang)) || null;
+  };
+  function say(text) {
+    if (!on || !synth || !window.Sound || !Sound.isOn()) return;
+    // sin emojis ni símbolos (los lee raro)
+    const clean = String(text).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, '').replace(/[~*_#<>]/g, ' ').trim();
+    if (!clean) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(clean);
+    const v = pickVoice();
+    if (v) u.voice = v;
+    u.lang = v ? v.lang : 'es-ES';
+    const [pitch, rate] = TONE[skinId] || TONE.clawd;
+    u.pitch = Math.min(2, pitch); u.rate = rate; u.volume = 0.9;
+    synth.speak(u);
+  }
+  return {
+    say,
+    set: v => { on = !!v; if (!on && synth) synth.cancel(); },
+    isOn: () => on,
+    speaking: () => !!(on && synth && synth.speaking),
+    setSkin: id => { skinId = TONE[id] ? id : 'clawd'; },
+  };
+})();
+window.Voice = Voice;
 
 // ---------- uso restante del plan (sesión de 5 h y semana) ----------
 const DAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];

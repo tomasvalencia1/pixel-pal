@@ -12,6 +12,9 @@ const Characters = (() => {
     outfit = { ...outfit, ...o };
     skin = Skins.get(outfit.skin);
     ClawdSprite.setSkin(skin);
+    const vid = skin && skin.id !== 'naranja' && skin.id !== 'turquesa' ? skin.id : 'clawd';
+    if (window.Sound && Sound.setVoice) Sound.setVoice(vid);   // 🗣️ cada personaje con su voz
+    if (window.Voice) Voice.setSkin(vid);
     if (prev !== outfit.skin && initDone) {
       ClawdSprite.trigger('hello');
       if (window.Sound) Sound.play('hello');
