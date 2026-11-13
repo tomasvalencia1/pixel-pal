@@ -273,7 +273,7 @@ const LABELS = {
   web: '🌐 Navegando', agent: '🤖 Coordinando', planning: '📋 Planeando', tinkering: '⚙️ Usando',
 };
 const TOOL_ACTIONS = Object.keys(LABELS);
-const PLAY_ACTIONS = ['walk', 'wave', 'peekaboo', 'highfive', 'beg', 'watch', 'hop', 'dance', 'kiss', 'stretch', 'sit'];
+const PLAY_ACTIONS = ['walk', 'wave', 'peekaboo', 'highfive', 'beg', 'watch', 'hop', 'dance', 'kiss', 'stretch', 'juggle', 'whistle', 'sit'];
 
 function toolCategory(tool) {
   for (const [cat, re] of CATEGORIES) if (re.test(tool || '')) return cat;
@@ -613,6 +613,18 @@ const GAMES = {
     weight: 1,
     start(ev) { ev.action = 'stretch'; say('stretch', 1); },
     update(ev) { return ev.t < 2.2; },
+  },
+  // 13. Malabares
+  juggle: {
+    weight: 2,
+    start(ev) { ev.action = 'juggle'; say('juggle', 1); },
+    update(ev) { return ev.t < 5; },
+  },
+  // 14. Silbar una canción
+  whistle: {
+    weight: 2,
+    start(ev) { ev.action = 'whistle'; say('whistle', 1); },
+    update(ev) { return ev.t < 4.5; },
   },
 };
 

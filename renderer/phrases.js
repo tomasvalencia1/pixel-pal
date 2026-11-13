@@ -35,6 +35,8 @@ const PHRASES = {
   wake: ['¡Ah! Ya estoy despierto 👀', '¡Estoy aquí! ¿Qué pasó?', '*bostezo* ¡Vamos!'],
   idle: ['¿Algo más en lo que te ayude?', 'Estiro las pinzas un rato 🦀', 'Aquí sigo, por si acaso', 'Qué buen día para programar', '¿Un descanso? Te lo has ganado ☕'],
   drag: ['¡Wiii! 🎢', '¡Ey, que me mareo!', '¡Allá vamos!', '¡Uooo!'],
+  juggle: ['¡Mira, sé hacer malabares! 🤹', 'Tres pelotas… ¿y si pruebo con cuatro?', 'Concentración máxima 🤹'],
+  whistle: ['🎶 Fiu, fiu…', 'Silbando bajito para no molestar 🎵', '¿Adivinas qué canción es? 🎶'],
   petted: ['¡Ay, qué gustito! 💕', 'Más, más 🥰', 'Me encantan tus mimos', 'Prrr… 🦀💕', '¡Hoy es el mejor día! 💖'],
   petSleep: ['zzz… 💕', '(sonríe en sueños) 😊', 'mmm… cinco minutitos más… 💤💕'],
   thrown: ['¡Wiiiii! 🚀', '¡Que vuelooo!', '¡Aaaaah! 🌀', '¡Soy un avión! ✈️'],

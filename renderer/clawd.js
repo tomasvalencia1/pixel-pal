@@ -1433,6 +1433,52 @@ const ClawdSprite = (() => {
       },
     },
 
+    // 🤹 Malabares: tres pelotas dando vueltas por encima de la cabeza, las pinzas suben y bajan a su ritmo
+    juggle: {
+      pose(P, t) {
+        const k = Math.sin(t * 2.2 * Math.PI);
+        P.armL = { x: -1, y: -4 + R(k * 2) };
+        P.armR = { x: 1, y: -4 - R(k * 2) };
+        P.openL = P.openR = true;
+        P.lookY = -1;
+        P.mouth = Math.floor(t * 0.5) % 3 === 2 ? 'grin' : 'smile';
+      },
+      over(g) {
+        const t = g.t || 0;
+        const cols = [C.red, C.yellow, C.blue];
+        for (let i = 0; i < 3; i++) {
+          const p = t * 1.1 + i / 3;
+          const a = (p % 1) * Math.PI * 2;
+          const x = 19 + Math.cos(a) * 8;
+          const y = g.top - 3 - Math.abs(Math.sin(a)) * 10;
+          alpha(clamp((g.k || 1) * 1.5), () => { rect(R(x), R(y), 2, 2, cols[i]); px(R(x), R(y), C.white); });
+        }
+      },
+    },
+
+    // 🎶 Silbar: se balancea con los ojos cerrados y le salen notas
+    whistle: {
+      pose(P, t) {
+        P.mouth = 'o';
+        P.eyes = 'happy';
+        P.dx = R(Math.sin(t * 2.4) * 1.2);
+        P.bob = Math.sin(t * 4.8) > 0.6 ? -1 : 0;
+        P.armL = { x: 0, y: -1 }; P.armR = { x: 0, y: -1 };
+      },
+      over(g) {
+        const t = g.t || 0;
+        for (let i = 0; i < 3; i++) {
+          const q = (t * 0.45 + i / 3) % 1;
+          const x = R(31 + q * 5 + Math.sin(q * 9 + i) * 1.5);   // junto a la boca, por fuera del cuerpo
+          const y = R(g.top + 4 - q * 14);
+          alpha((1 - q) * clamp(g.k || 1), () => {
+            const c = i === 1 ? C.yellow : C.white;
+            rect(x, y + 2, 2, 2, c); rect(x + 1, y - 1, 1, 3, c); px(x + 2, y - 1, c);   // ♪
+          });
+        }
+      },
+    },
+
     // ---------- canciones especiales (tus más escuchadas) ----------
 
     // 🕶️ Uptown Funk: paso lateral con estilo, hombros, señalar y pose congelada
@@ -2074,21 +2120,23 @@ const ClawdSprite = (() => {
 
   let dxState = 0;
 
-  // 🎬 Capa de «muelle» para todas las animaciones y personajes (principios de animación):
-  // aplastar al aterrizar y estirar al despegar, con un rebote amortiguado. En pixel art basta con 1-2 píxeles.
-  const spring = { x: 0, v: 0, lastBob: 0 };
-  function springStep(P, dt, changed) {
-    const rising = P.bob < spring.lastBob - 0.5;                 // subiendo (bob negativo = arriba)
-    if (spring.lastBob <= -3 && P.bob >= 0) spring.v -= 26;      // aterriza: aplastar
-    else if (rising && spring.lastBob >= -1) spring.v += 14;      // despega: estirar
-    if (changed) spring.v -= 9;                                    // cambio de acción: botecito
-    spring.lastBob = P.bob;
-    if (dt > 0) {                                                  // muelle amortiguado
-      const k = 220, c = 15;
-      spring.v += (-k * spring.x - c * spring.v) * dt;
-      spring.x += spring.v * dt;
+  // 🎬 Aplastar al aterrizar (principio de animación «squash»), solo en saltos de verdad.
+  // La respiración y los pequeños movimientos de 1-2 píxeles NO cuentan: así Pal no se deforma en reposo.
+  const spring = { x: 0, v: 0, peak: 0 };
+  function springStep(P, dt) {
+    if (P.bob < 0) spring.peak = Math.min(spring.peak, P.bob);       // altura del salto (bob negativo = arriba)
+    else {
+      if (spring.peak <= -4) spring.v -= 16;                         // aterriza de un salto alto: aplastar
+      spring.peak = 0;
     }
-    spring.x = clamp(spring.x, -2.5, 2.5);
+    // muelle amortiguado, en pasos de 1/120 s: estable aunque Pal vaya a pocos fps
+    const k = 260, c = 26;
+    for (let rem = Math.min(dt, 0.25); rem > 1e-6; rem -= 1 / 120) {
+      const h = Math.min(rem, 1 / 120);
+      spring.v += (-k * spring.x - c * spring.v) * h;
+      spring.x += spring.v * h;
+    }
+    spring.x = clamp(spring.x, -1.4, 0.4);                           // como mucho 1 píxel, sin estirones
     const s = R(spring.x);
     if (s) { P.sy += s; P.sx -= s; }
   }
@@ -2140,8 +2188,8 @@ const ClawdSprite = (() => {
 
     // manías y easter eggs del personaje
     if (SKIN && SKIN.pose && !opts.dragging) SKIN.pose(P, active, t, opts);
-    // 🎬 muelle: estira al despegar, se aplasta al aterrizar y rebota un poco al cambiar de acción
-    if (!opts.dragging) springStep(P, dt, t === changeAt);
+    // 🎬 se aplasta un poquito al aterrizar de un salto
+    if (!opts.dragging) springStep(P, dt);
 
     // desplazamiento lateral suave (por ejemplo, se corre a un lado para usar la laptop)
     const target = P.dx;
