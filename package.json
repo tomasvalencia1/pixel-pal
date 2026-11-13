@@ -1,6 +1,6 @@
 {
   "name": "clawd-flotante",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Pixel Pal: Desktop Pet — una mascota de escritorio que muestra el progreso de tus sesiones de Claude Code",
   "main": "main.js",
   "private": true,

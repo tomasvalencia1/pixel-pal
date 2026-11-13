@@ -14,8 +14,11 @@
     .btn.tiny { padding: 2px 8px; font-size: 11px; }
     .num { width: 46px; }
     .checks, .provider { gap: 14px; flex-wrap: wrap; }
-    select, input[type=time] { font: inherit; font-size: 12.5px; color: var(--text, #f3eee9); background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 4px 8px; color-scheme: dark; }
+    select, input[type=time], input[type=number] { font: inherit; font-size: 12.5px; color: var(--text, #f3eee9); background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 4px 8px; color-scheme: dark; }
     select option { background: #2a2622; }
+    .privacy p { margin: 0 0 8px; line-height: 1.45; }
+    .privacy ul { margin: 0 0 10px; padding-left: 18px; line-height: 1.5; }
+    .privacy code { font-size: 11px; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 5px; word-break: break-all; }
     .card .row + .row { margin-top: 10px; }
   </style>
 </head>
@@ -168,6 +171,25 @@
         </div>
         <button class="btn" id="tutorial" type="button">📖 Ver el tutorial</button>
       </div>
+    </div>
+
+    <h3 id="privacy">🔒 Privacidad</h3>
+    <div class="card small privacy">
+      <p><b>Todo se guarda en tu PC</b>, en <code id="dataDir">…</code>: el estado de tus sesiones (nombre del proyecto, en qué está y sus tareas), tus estadísticas del día, tu nivel y logros, tus notas y recordatorios, y tus ajustes.</p>
+      <p><b>Nunca guarda</b> lo que le escribes a Claude ni tu código. El registro de depuración está <span id="dbgState">apagado</span>.</p>
+      <p><b>El vigilante de Windows</b> mira qué ventana usas, si estás tecleando (nunca qué teclas), si cambia el portapapeles (nunca su contenido), la batería y qué música suena. Todo eso se queda en tu PC: lo usa Pal para reaccionar.</p>
+      <p><b>Qué sale del PC</b> (solo lo que actives):</p>
+      <ul>
+        <li>📱 Avisos al móvil: <span id="prPhone">apagados</span> — nombre del proyecto, estado y número de tareas.</li>
+        <li>🧠 Charla con Haiku: <span id="prHaiku">sin clave</span> — solo lo que escribes en «Hablar» cuando Pal no lo entiende solo, con tu propia clave de Anthropic.</li>
+        <li>Nada más: sin analíticas, sin publicidad y sin enviar datos a nadie.</li>
+      </ul>
+      <div class="row">
+        <button class="btn" id="openData" type="button">📂 Abrir la carpeta de datos</button>
+        <button class="btn danger" id="clearHistory" type="button" title="Borra las estadísticas del día y los registros. No toca tu nivel, logros, notas ni ajustes.">🧹 Borrar historial</button>
+        <span class="grow"></span>
+      </div>
+      <div class="msg" id="privMsg"></div>
     </div>
 
     <h3>Información</h3>

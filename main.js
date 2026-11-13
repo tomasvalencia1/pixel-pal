@@ -1279,6 +1279,7 @@ function uiStatus() {
     serverError,
     hooks: hooks.status(PORT, TOKEN),
     calm: { dndUntil: Number(config.dndUntil) || 0, quietHours: config.quietHours || { on: false, from: '22:00', to: '08:00' }, respectFocus: config.respectFocus !== false, chatty: Number.isInteger(config.chatty) ? config.chatty : 2, hideCapture: !!config.hideCapture, motion: config.motion || 'auto', size: config.size || 'normal', quiet },
+    privacy: { dir: DIR, debugLog: !!config.debugLog, phone: !!(config.phone && config.phone.on), phoneProvider: (config.phone && config.phone.provider) || 'app', haiku: fs.existsSync(path.join(DIR, 'brain-key.bin')) },
     perm: { approve: config.permApprove !== false, wait: Number(config.permWait ?? 20), installed: hooks.permissionInstalled(PORT, TOKEN) },
     autostart: getAutostart(),
     onboarded: !!config.onboarded,
@@ -1296,6 +1297,14 @@ function setupUiIpc() {
     catch (e) { return { ok: false, error: e.message }; }
   });
   ipcMain.handle('ui:set-autostart', (_e, on) => { setAutostart(!!on); return uiStatus(); });
+  // 🔒 privacidad
+  ipcMain.handle('ui:open-data', () => { require('electron').shell.openPath(DIR); return true; });
+  ipcMain.handle('ui:clear-history', () => {
+    // estadísticas del día y registro de depuración (no toca tu nivel, logros, notas ni ajustes)
+    for (const name of ['stats.json', 'events.log', 'events.log.old', 'renderer.log']) { try { fs.unlinkSync(path.join(DIR, name)); } catch { /* no existe */ } }
+    stats = null;
+    return true;
+  });
   // 🤫 tranquilidad
   ipcMain.handle('ui:calm-set', (_e, p) => {
     p = p && typeof p === 'object' ? p : {};

@@ -33,6 +33,7 @@ function render(s) {
   }
   permRender(s);
   calmRender(s);
+  privRender(s);
   $('autostart').checked = !!s.autostart;
   $('autostartNote').hidden = !!s.packaged;
   $('version').textContent = s.version || '—';
@@ -60,6 +61,24 @@ $('hooksBtn').addEventListener('click', async () => {
     setMsg(e.message, 'err');
     btn.disabled = false;
   }
+});
+
+// ---------- 🔒 privacidad ----------
+function privRender(s) {
+  const p = s.privacy || {};
+  $('dataDir').textContent = p.dir || '…';
+  $('dbgState').textContent = p.debugLog ? 'encendido (sin lo que escribes)' : 'apagado';
+  $('prPhone').textContent = p.phone ? (p.phoneProvider === 'ntfy' ? 'activados (ntfy)' : 'activados (tu app, por Firebase)') : 'apagados';
+  $('prHaiku').textContent = p.haiku ? 'activada' : 'sin clave (no se usa)';
+}
+$('openData').addEventListener('click', () => window.ui.openData());
+let clearArmed = 0;
+$('clearHistory').addEventListener('click', async () => {
+  const m = $('privMsg');
+  if (Date.now() - clearArmed > 4000) { clearArmed = Date.now(); m.textContent = '¿Seguro? Pulsa otra vez para borrar las estadísticas del día y los registros.'; m.className = 'msg'; return; }
+  clearArmed = 0;
+  await window.ui.clearHistory();
+  m.textContent = 'Historial borrado 🧹 (tu nivel, logros, notas y ajustes siguen igual).'; m.className = 'msg ok';
 });
 
 // ---------- 🤫 tranquilidad ----------
