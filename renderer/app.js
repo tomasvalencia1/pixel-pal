@@ -1001,6 +1001,7 @@ document.getElementById('hidebtn').addEventListener('click', e => {
 // ---------- ⚙️ ajustes y 📖 tutorial ----------
 document.getElementById('settingsbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.openUi('settings'); });
 document.getElementById('tutorialbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.openUi('tutorial'); });
+document.getElementById('restartbtn').addEventListener('click', e => { e.stopPropagation(); Speech.say('¡Vuelvo en un segundo! 🔄', 3, { dur: 1500 }); setTimeout(() => window.clawd.restart(), 600); });
 
 // ✋ Claude pide permiso: Permitir / Denegar / Ver (si no contestas, sale el diálogo de siempre)
 window.clawd.onCommand(c => {

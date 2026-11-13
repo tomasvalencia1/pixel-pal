@@ -86,6 +86,7 @@ $('autostart').addEventListener('change', async e => {
 });
 
 $('tutorial').addEventListener('click', () => window.ui.open('tutorial'));
+$('restart').addEventListener('click', () => window.ui.restart());
 $('close').addEventListener('click', () => window.ui.close());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') window.ui.close(); });
 

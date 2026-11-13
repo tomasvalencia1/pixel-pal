@@ -25,7 +25,7 @@ const CONFIG_FILE = path.join(DIR, 'config.json');
 const PENDING_FILE = path.join(DIR, 'pending.jsonl');
 const LOG_FILE = path.join(DIR, 'events.log');
 const WIN_W = 340;
-const WIN_H = 500;
+const WIN_H = 600;   // alto de la ventana (deja sitio al panel para ver varias sesiones)
 const STALE_MS = 30 * 60 * 1000;
 
 // ---------- clave secreta compartida con el hook ----------
@@ -728,7 +728,7 @@ function clampAnchor([x, y]) {
 function layoutFor([x, y], prev) {
   const d = screen.getDisplayNearestPoint({ x: Math.round(x + 80), y: Math.round(y + 100) }).workArea;
   return {
-    down: y - d.y < 300 + (prev.down ? 20 : 0),   // poco espacio arriba -> todo sale hacia abajo
+    down: y - d.y < 400 + (prev.down ? 20 : 0),   // poco espacio arriba -> todo sale hacia abajo
     left: x - d.x < 170 + (prev.left ? 20 : 0),   // poco espacio a la izquierda -> todo sale hacia la derecha
   };
 }
@@ -819,6 +819,15 @@ function createWindow() {
     lastCursorKey = key; lastCursorAt = now;
     win.webContents.send('cursor', { x: p.x - b.x, y: p.y - b.y, inside });
   }, 80);
+}
+
+// 🔄 Reiniciar Pal (por si algo se queda raro): se cierra limpio y se vuelve a abrir con lo mismo
+function restartPal() {
+  app.isQuitting = true;
+  try { if (mediaChild) mediaChild.kill(); } catch { /* nada */ }
+  for (const [id] of pendingPerms) permAnswer(id, 'pass');   // los permisos pendientes vuelven al diálogo normal
+  app.relaunch();
+  app.exit(0);
 }
 
 function toggleVisible() {
@@ -999,6 +1008,7 @@ function setupIpc() {
   // Le soltaste un archivo encima: abre la ventana de sesiones
   ipcMain.on('open-sessions', (_e, file) => openSessionsWindow(typeof file === 'string' ? file : null));
   ipcMain.on('sess-action', (_e, a) => sessAction(a));
+  ipcMain.on('restart', () => restartPal());
   ipcMain.handle('perm-answer', async (_e, a) => {
     if (!a || typeof a !== 'object') return false;
     const id = String(a.id || '');
@@ -1063,6 +1073,7 @@ function setupIpc() {
       { type: 'checkbox', label: 'Recordatorios de descanso y agua', checked: config.breaks !== false, click: m => { saveConfig({ breaks: m.checked }); send({ prefs: prefsPayload() }); } },
       { type: 'separator' },
       { label: 'Ocultar (vuelve con Ctrl+Alt+C o la bandeja)', click: () => win.hide() },
+      { label: '🔄 Reiniciar Pal', click: restartPal },
       { label: 'Salir', click: () => app.quit() },
     ]).popup({ window: win });
   });
@@ -1267,6 +1278,7 @@ function setupUiIpc() {
   });
   ipcMain.handle('ui:open', (_e, page) => { openUi(page === 'tutorial' ? 'tutorial' : 'settings'); return true; });
   ipcMain.on('ui:close', () => { if (uiWin && !uiWin.isDestroyed()) uiWin.close(); });
+  ipcMain.on('ui:restart', () => restartPal());
 
 }
 
@@ -1282,6 +1294,7 @@ function setupTray() {
     { label: 'Tienda: personajes y accesorios', click: openShop },
     { label: 'Volver a la esquina', click: () => { anchor = defaultAnchor(); applyLayout(); saveConfig({ anchor, pos: null }); } },
     { type: 'separator' },
+    { label: '🔄 Reiniciar Pal', click: restartPal },
     { label: 'Salir', click: () => app.quit() },
   ]));
 }

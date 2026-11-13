@@ -163,8 +163,14 @@ const Boost = (() => {
     const xp = document.createElement('span'); xp.className = 'xp'; xp.textContent = `${data.xp - from}/${to - from} XP`;
     row.append(b, bar, xp);
     const stats = document.createElement('div'); stats.className = 'bstats';
-    stats.textContent = `${moodFace()} ${moodV()}% · 🔥 ${streakNow()} ${streakNow() === 1 ? 'día' : 'días'} · 🍅 ${pomos} hoy · 🏅 ${data.ach.length}/${ACH.length}`;
-    stats.title = `Ánimo de Pal: ${moodV()}% (sube si le haces caso, trabajas y descansas)`;
+    // una sola línea: cada dato con su explicación al pasar el ratón
+    const chip = (txt, tip) => { const s = document.createElement('span'); s.textContent = txt; s.title = tip; return s; };
+    stats.append(
+      chip(`${moodFace()} ${moodV()}%`, `Ánimo de Pal: ${moodV()}% (sube si le haces caso, trabajas y descansas)`),
+      chip(`🔥 ${streakNow()}`, `Racha: ${streakNow()} ${streakNow() === 1 ? 'día' : 'días'} seguidos`),
+      chip(`🍅 ${pomos}`, `${pomos} pomodoros hoy`),
+      chip(`🏅 ${data.ach.length}/${ACH.length}`, 'Logros conseguidos'),
+    );
     box.append(row, stats);
   }
 

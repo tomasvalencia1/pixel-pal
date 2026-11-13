@@ -40,4 +40,5 @@ contextBridge.exposeInMainWorld('clawd', {
   listen: () => ipcRenderer.invoke('talk-listen'),
   openBrain: () => ipcRenderer.send('brain-open'),
   openUi: page => ipcRenderer.invoke('ui:open', page),
+  restart: () => ipcRenderer.send('restart'),
 });

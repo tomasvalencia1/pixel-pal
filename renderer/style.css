@@ -200,7 +200,7 @@ body.panel-open #bubble.ask { visibility: visible; }
   right: 8px;
   bottom: 216px;
   width: 320px;
-  max-height: 272px;
+  max-height: 372px;
   overflow-y: auto;
   padding: 10px;
   border-radius: 14px;
@@ -215,8 +215,11 @@ body.flip-v #panel { bottom: auto; top: 220px; }
 /* ⚡ con el panel cerrado, sus animaciones infinitas (música, aviso) se paran: no hace falta repintar lo que no se ve */
 #panel.hidden * { animation-play-state: paused !important; }
 body.flip-v #panel.hidden { transform: translateY(-6px); }
-#panel::-webkit-scrollbar { width: 6px; }
-#panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 3px; }
+#panel::-webkit-scrollbar { width: 5px; }
+#panel::-webkit-scrollbar-track { background: transparent; }
+/* barra de desplazamiento discreta: solo se ve al pasar por encima */
+#panel::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+#panel:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .14); }
 
 .panel-head { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 8px; }
 .panel-title { font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
@@ -326,17 +329,18 @@ body.talk-open #bubble:not(.ask), body.talk-open #caption { visibility: hidden; 
 .p-head .boost { margin: 2px 0 0; padding: 0; background: none; border-radius: 0; }
 .p-head .boost:hover { background: none; opacity: 0.85; }
 .p-head .lv { font-size: 11.5px; }
-.p-head .bstats { font-size: 11px; margin-top: 1px; }
+.p-head .bstats { font-size: 11px; margin-top: 1px; white-space: nowrap; display: flex; gap: 8px; }
+.p-head .bstats span { cursor: help; }
 
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
 .tile {
   font: inherit; color: var(--muted); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px; padding: 7px 2px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border-radius: 11px; padding: 5px 2px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;
   transition: background 0.12s ease, transform 0.12s ease, border-color 0.12s ease;
 }
 .tile:hover { background: rgba(255, 255, 255, 0.11); color: var(--text); transform: translateY(-1px); }
 .tile:active { transform: translateY(0); }
-.tile .t-i { font-size: 17px; line-height: 1.15; }
+.tile .t-i { font-size: 16px; line-height: 1.1; }
 .tile .t-l { font-size: 10.5px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .tile.on { color: var(--text); background: rgba(217, 119, 87, 0.22); border-color: rgba(217, 119, 87, 0.6); }
 #pomobtn.on .t-l { color: #ffd2c2; }
