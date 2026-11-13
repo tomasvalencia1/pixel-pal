@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.net.Uri
+import android.os.PowerManager
 import android.provider.Settings
 import android.text.InputType
 import android.widget.Button
@@ -13,6 +15,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.gms.common.moduleinstall.ModuleInstall
 import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -35,6 +38,31 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.test).setOnClickListener {
             Notifs.show(this, "done", "Pixel Pal", "Así se verán los avisos de Pal 🦀", "prueba")
+        }
+        // ⏰ notificación o alarma para cada tipo de aviso
+        mapOf(R.id.swDone to "done", R.id.swWaiting to "waiting", R.id.swError to "error").forEach { (id, kind) ->
+            findViewById<MaterialSwitch>(id).apply {
+                isChecked = Prefs.isAlarm(this@MainActivity, kind)
+                setOnCheckedChangeListener { _, on -> Prefs.setAlarm(this@MainActivity, kind, on) }
+            }
+        }
+        findViewById<MaterialSwitch>(R.id.swVoice).apply {
+            isChecked = Prefs.voice(this@MainActivity)
+            setOnCheckedChangeListener { _, on -> Prefs.setVoice(this@MainActivity, on) }
+        }
+        findViewById<Button>(R.id.testAlarm).setOnClickListener {
+            startActivity(AlarmActivity.intent(this, "test", "Pixel Pal", "¡Hola! Así te avisaré cuando termine Claude", "prueba"))
+        }
+        findViewById<Button>(R.id.permFull).setOnClickListener {
+            if (Build.VERSION.SDK_INT >= 34) startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName")))
+        }
+        findViewById<Button>(R.id.permOverlay).setOnClickListener {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        }
+        findViewById<Button>(R.id.permBattery).setOnClickListener {
+            @android.annotation.SuppressLint("BatteryLife")
+            val i = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
+            runCatching { startActivity(i) }.onFailure { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
         }
         if (Build.VERSION.SDK_INT >= 33 && !Notifs.allowed(this)) askNotifs.launch(Manifest.permission.POST_NOTIFICATIONS)
         handle(intent)
@@ -100,6 +128,23 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.unpair).isEnabled = p != null
         findViewById<Button>(R.id.notifs).text =
             if (Notifs.allowed(this)) "🔔 Ajustes de notificaciones" else "🔔 Permitir notificaciones"
+        // permisos de la alarma: ✓ cuando ya están
+        val full = Notifs.fullScreenAllowed(this)
+        val overlay = Notifs.overlayAllowed(this)
+        val battery = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+        findViewById<Button>(R.id.permFull).apply {
+            visibility = if (Build.VERSION.SDK_INT >= 34) android.view.View.VISIBLE else android.view.View.GONE
+            text = if (full) "✅ Pantalla completa permitida" else "📱 Permitir pantalla completa"
+            isEnabled = !full
+        }
+        findViewById<Button>(R.id.permOverlay).apply {
+            text = if (overlay) "✅ Puede mostrarse sobre otras apps" else "🪟 Mostrar sobre otras apps (opcional)"
+            isEnabled = !overlay
+        }
+        findViewById<Button>(R.id.permBattery).apply {
+            text = if (battery) "✅ La app no se duerme" else "🔋 No dormir la app (batería)"
+            isEnabled = !battery
+        }
         findViewById<TextView>(R.id.warn).visibility =
             if (Notifs.allowed(this)) android.view.View.GONE else android.view.View.VISIBLE
     }

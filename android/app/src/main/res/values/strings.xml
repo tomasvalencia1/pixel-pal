@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Pixel Pal · Avisos</string>
+    <string name="ok">Vale 👍</string>
+    <string name="silence">🔕 Silenciar y seguir mirando</string>
 </resources>

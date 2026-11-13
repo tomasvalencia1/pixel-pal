@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <!-- Pantalla de alarma: el mismo Pal del PC (clawd.js + skins.js copiados al compilar) contándote el aviso -->
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; color: #F3EEE9; font-family: system-ui, sans-serif;
+      background: radial-gradient(circle at 50% 45%, #3b2a22 0%, #1c1a18 70%); }
+    body.alert { background: radial-gradient(circle at 50% 45%, #4a2224 0%, #1c1a18 70%); }
+    #wrap { height: 100%; box-sizing: border-box; padding: 28px 20px 170px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+    #clock { font-size: 44px; font-weight: 300; letter-spacing: 1px; }
+    #who { font-size: 14px; color: #A39A92; margin-top: -10px; }
+    #bubble { position: relative; background: #FBF6EC; color: #2A2522; border-radius: 18px; padding: 14px 18px; max-width: 86vw; min-width: 50vw;
+      font-size: 19px; line-height: 1.35; box-shadow: 0 8px 28px rgba(0, 0, 0, .45); animation: pop .4s cubic-bezier(.2, 1.4, .4, 1); margin-top: 10px; }
+    #bubble::after { content: ""; position: absolute; bottom: -12px; left: 50%; margin-left: -11px; border: 11px solid transparent; border-top-color: #FBF6EC; border-bottom: 0; }
+    #bubble b { display: block; font-size: 15px; color: #B85C3E; margin-bottom: 4px; }
+    body.alert #bubble b { color: #E5484D; }
+    #text::after { content: "▌"; color: #C9BFAE; animation: blink 1s steps(1) infinite; }
+    #text.done::after { content: ""; }
+    canvas { width: min(64vw, 300px); image-rendering: pixelated; }
+    @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="clock"></div>
+    <div id="who"></div>
+    <div id="bubble"><b id="title"></b><span id="text"></span></div>
+    <canvas id="pal"></canvas>
+  </div>
+  <script>
+    // Datos del aviso: kind, title, body, outfit {skin, hat, glasses, neck}, edition
+    const D = (() => { try { return JSON.parse(decodeURIComponent(location.hash.slice(1))); } catch (e) { return {}; } })();
+    window.PAL_EDITION = D.edition === 'personal' ? 'personal' : 'shared';
+  </script>
+  <script src="catalog.js"></script>
+  <script src="clawd.js"></script>
+  <script src="skins.js"></script>
+  <script>
+    const kind = D.kind || 'done';
+    const o = D.outfit || {};
+    if (kind === 'waiting' || kind === 'error') document.body.classList.add('alert');
+
+    // reloj
+    const clock = document.getElementById('clock');
+    const tick = () => { const d = new Date(); clock.textContent = d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }); };
+    tick(); setInterval(tick, 10000);
+
+    // quién habla
+    let skinInfo = null;
+    try { skinInfo = CATALOG.skins.find(s => s.id === o.skin) || CATALOG.skins[0]; } catch (e) { /* sin catálogo */ }
+    document.getElementById('who').textContent = skinInfo ? `${skinInfo.emoji} ${skinInfo.name} te avisa` : 'Pal te avisa';
+
+    // bocadillo que se escribe solo
+    document.getElementById('title').textContent = D.title || 'Pixel Pal';
+    const textEl = document.getElementById('text');
+    const full = D.body || '';
+    let i = 0;
+    const typer = setInterval(() => {
+      i = Math.min(full.length, i + 2);
+      textEl.textContent = full.slice(0, i);
+      if (i >= full.length) { clearInterval(typer); textEl.classList.add('done'); }
+    }, 35);
+
+    // Pal animado con su personaje y su ropa
+    const canvas = document.getElementById('pal');
+    const ctx = ClawdSprite.setup(canvas);
+    try { ClawdSprite.setSkin(o.skin && o.skin !== 'clawd' ? Skins.get(o.skin) : null); } catch (e) { /* personaje desconocido */ }
+    const wear = {
+      hat: o.hat && o.hat !== 'none' ? o.hat : null,
+      glasses: o.glasses && o.glasses !== 'none' ? o.glasses : null,
+      neckwear: o.neck && o.neck !== 'none' ? o.neck : null,
+    };
+    const SEQ = {
+      done: ['celebrate', 'hop', 'wave', 'celebrate', 'dance'],
+      waiting: ['waiting'],
+      error: ['beg', 'waiting'],
+      test: ['wave', 'hop', 'celebrate'],
+    }[kind] || ['wave'];
+    const start = performance.now();
+    function frame(ms) {
+      const t = ms / 1000;
+      const action = SEQ[Math.floor((ms - start) / 3200) % SEQ.length];
+      ClawdSprite.draw(ctx, t, action, { wear, look: { x: 20, y: 30 } });
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    if (kind === 'done' || kind === 'test') setTimeout(() => ClawdSprite.trigger('hello'), 300);
+  </script>
+</body>
+</html>

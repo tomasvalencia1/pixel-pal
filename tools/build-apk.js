@@ -12,6 +12,12 @@ if (!fs.existsSync(path.join(AND, 'app', 'google-services.json'))) {
   console.error('Falta android/app/google-services.json (consola de Firebase → tu proyecto → app Android com.pixelpal.avisos).');
   process.exit(1);
 }
+// El dibujo de Pal para la pantalla de alarma: el mismo código que en el PC
+const ASSETS = path.join(AND, 'app', 'src', 'main', 'assets', 'pal');
+fs.mkdirSync(ASSETS, { recursive: true });
+for (const f of ['clawd.js', 'skins.js', 'catalog.js']) fs.copyFileSync(path.join(ROOT, 'renderer', f), path.join(ASSETS, f));
+console.log('Pal copiado a la app (clawd.js, skins.js, catalog.js)');
+
 // Gradle: el de la carpeta de Gradle del usuario (el que ya usa Android Studio)
 const dists = path.join(os.homedir(), '.gradle', 'wrapper', 'dists');
 const want = ['gradle-8.7-bin', 'gradle-8.14.3-all', 'gradle-8.14.3-bin'];

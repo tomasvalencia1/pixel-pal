@@ -68,6 +68,7 @@ const FIREBASE_KEY_FILE = path.join(DIR, 'firebase-key.json');
 const APK_FILE = path.join(__dirname, 'dist', 'Pixel-Pal-Avisos.apk');
 const phone = createPhone({
   readKey: () => readJson(FIREBASE_KEY_FILE, null),
+  look: () => ({ outfit: getOutfit(), edition: ED.name }),   // así el móvil dibuja a Pal igual que en el PC
   pcName: os.hostname(),
   getConfig: () => config,
   saveConfig,

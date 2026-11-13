@@ -64,6 +64,88 @@
             android:layout_height="wrap_content"
             android:text="⌨️ Escribir el código" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Cómo avisarte"
+            android:textColor="@color/text"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:text="Activado = ⏰ alarma: Pal aparece en pantalla completa, te lo cuenta y suena hasta que pulses Vale. Desactivado = 🔔 notificación normal."
+            android:textColor="@color/muted"
+            android:textSize="13sp" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swDone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="✅ Claude terminó"
+            android:textColor="@color/text"
+            android:textSize="15sp" />
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swWaiting"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="✋ Necesita tu permiso"
+            android:textColor="@color/text"
+            android:textSize="15sp" />
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⚠️ Error o límite de uso"
+            android:textColor="@color/text"
+            android:textSize="15sp" />
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swVoice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🗣️ Que Pal lo diga en voz alta"
+            android:textColor="@color/text"
+            android:textSize="15sp" />
+
+        <Button
+            android:id="@+id/testAlarm"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⏰ Probar la alarma" />
+
+        <TextView
+            android:id="@+id/permsTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Para que la alarma funcione siempre"
+            android:textColor="@color/text"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/permFull"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📱 Permitir pantalla completa" />
+        <Button
+            android:id="@+id/permOverlay"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🪟 Mostrar sobre otras apps" />
+        <Button
+            android:id="@+id/permBattery"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🔋 No dormir la app (batería)" />
+
         <Button
             android:id="@+id/notifs"
             style="@style/Widget.Material3.Button.OutlinedButton"

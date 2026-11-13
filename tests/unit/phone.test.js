@@ -155,6 +155,7 @@ function fcmSetup({ key = true } = {}) {
     getConfig: () => config, saveConfig: patch => { config = { ...config, ...patch }; },
     idleSeconds: () => 0, isLocked: () => false, getSession: () => null,
     readKey: () => (key ? sa : null), pcName: 'MI-PC',
+    look: () => ({ outfit: { skin: 'miso', hat: 'cowboy', glasses: 'none', neck: 'none' }, edition: 'personal' }),
     fetch: async (url, opts) => {
       calls.push({ url, opts });
       if (url.includes('oauth2')) return { ok: true, status: 200, json: async () => ({ access_token: 'tok-123', expires_in: 3600 }) };
@@ -191,11 +192,14 @@ test('app: firma el JWT con la clave y envía al tema con el formato de FCM v1',
   assert.equal(calls[1].opts.headers.authorization, 'Bearer tok-123');
   const m = JSON.parse(calls[1].opts.body).message;
   assert.equal(m.topic, p.status().fcmTopic);
-  assert.match(m.notification.title, /mi-app: Claude necesita tu permiso/);
+  assert.equal(m.notification, undefined, 'solo datos: la app decide notificación o alarma');
+  assert.match(m.data.title, /mi-app: Claude necesita tu permiso/);
+  assert.equal(m.data.urgent, '1');
+  assert.deepEqual(JSON.parse(m.data.outfit), { skin: 'miso', hat: 'cowboy', glasses: 'none', neck: 'none' });
+  assert.equal(m.data.edition, 'personal');
   assert.equal(m.data.kind, 'waiting');
   assert.equal(m.data.session, 'ses-9');
   assert.equal(m.android.priority, 'HIGH');
-  assert.equal(m.android.notification.channel_id, 'pal_urgent');
   for (const v of Object.values(m.data)) assert.equal(typeof v, 'string', 'FCM solo admite textos en data');
 });
 

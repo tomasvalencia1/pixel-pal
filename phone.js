@@ -22,7 +22,7 @@ const newFcmTopic = () => `pp_${crypto.randomBytes(12).toString('hex')}`;
 const b64url = x => Buffer.from(x).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
 const mins = ms => { const m = Math.round(ms / 60000); return m < 1 ? 'menos de 1 min' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
 
-// deps: getConfig(), saveConfig(patch), idleSeconds(), isLocked(), getSession(id), readKey(), pcName, fetch, now()
+// deps: getConfig(), saveConfig(patch), idleSeconds(), isLocked(), getSession(id), readKey(), look(), pcName, fetch, now()
 function createPhone(deps) {
   const now = deps.now || Date.now;
   const fetchFn = deps.fetch || fetch;
@@ -82,6 +82,11 @@ function createPhone(deps) {
     token = { value: j.access_token, exp: now() + (Number(j.expires_in) || 3600) * 1000, email: key.client_email };
     return token.value;
   }
+  // el personaje y la ropa que lleva Pal ahora (para dibujarlo igual en el móvil)
+  function look() {
+    try { const x = (deps.look && deps.look()) || {}; return { outfit: JSON.stringify(x.outfit || {}), edition: String(x.edition || 'shared') }; }
+    catch { return { outfit: '{}', edition: 'shared' }; }
+  }
   async function sendFcm(c, msg) {
     const key = readKey();
     if (!key) return { ok: false, error: 'falta la clave de Firebase' };
@@ -90,9 +95,9 @@ function createPhone(deps) {
     const body = {
       message: {
         topic: c.fcmTopic,
-        notification: { title: msg.title, body: msg.message },
-        data: { kind: String(msg.kind || 'done'), session: tag, title: msg.title, body: msg.message },
-        android: { priority: 'HIGH', notification: { channel_id: urgent ? 'pal_urgent' : 'pal', tag, color: urgent ? '#E5484D' : '#D97757', icon: 'ic_stat_pal' } },
+        // solo datos y prioridad alta: la app decide si es notificación o ⏰ alarma con Pal en pantalla
+        data: { kind: String(msg.kind || 'done'), session: tag, title: msg.title, body: msg.message, urgent: urgent ? '1' : '0', ...look() },
+        android: { priority: 'HIGH', ttl: '3600s' },
       },
     };
     const r = await fetchFn(`https://fcm.googleapis.com/v1/projects/${key.project_id}/messages:send`, {
