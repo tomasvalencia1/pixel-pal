@@ -115,7 +115,7 @@ const Speech = (() => {
     lastAt = now;
     const ask = !!(opts.buttons && opts.buttons.length);
     const dur = opts.dur || (ask ? 15000 : Math.min(7000, 2400 + text.length * 60));
-    cur = { text, until: now + dur, priority, ask, onAnswer: opts.onAnswer || null, answered: false };
+    cur = { text, until: now + dur, priority, ask, onAnswer: opts.onAnswer || null, answered: false, tag: opts.tag || null };
     const mine = cur;
     el.className = '';
     void el.offsetWidth; // reinicia la animación de aparición
@@ -167,10 +167,12 @@ const Speech = (() => {
     return true;
   }
   function hide() { cur = null; clearInterval(typer); el.className = 'hidden'; }
+  // quita la burbuja si es la de esa etiqueta (p. ej. un permiso que ya se contestó en otra parte)
+  function drop(tag) { if (cur && cur.tag === tag) { cur.answered = true; clearTimeout(hideTimer); hide(); } }
   const speaking = () => !!cur && Date.now() < cur.until;
   const asking = () => !!cur && cur.ask && !cur.answered && Date.now() < cur.until;
   const sinceLast = () => Date.now() - lastAt;
-  return { say, speaking, asking, sinceLast };
+  return { say, speaking, asking, sinceLast, drop };
 })();
 const say = (key, priority = 2, opts = {}, vars = {}) => Speech.say(Phrases.pick(key, vars), priority, opts);
 
@@ -887,6 +889,21 @@ document.getElementById('hidebtn').addEventListener('click', e => {
 document.getElementById('settingsbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.openUi('settings'); });
 document.getElementById('tutorialbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.openUi('tutorial'); });
 
+// ✋ Claude pide permiso: Permitir / Denegar / Ver (si no contestas, sale el diálogo de siempre)
+window.clawd.onCommand(c => {
+  if (c && c.perm) {
+    const p = c.perm;
+    const what = p.detail ? `${p.tool}: ${p.detail}` : p.tool || 'una herramienta';
+    const buttons = [{ label: '✅ Permitir', value: 'allow', primary: true }, { label: '❌ Denegar', value: 'deny' }];
+    if (p.canJump) buttons.push({ label: '↗ Ver', value: 'pass' });
+    ClawdSprite.trigger('poke');
+    if (window.Sound) Sound.play('alert');
+    Speech.say(`✋ ${p.project} quiere usar ${what}`, 3, {
+      alert: true, buttons, tag: p.id, dur: p.ms,
+      onAnswer: v => { if (v) window.clawd.permAnswer(p.id, v); },
+    });
+  } else if (c && c.permDone) Speech.drop(c.permDone);
+});
 window.clawd.onCommand(c => {
   if (c === 'toggle-pin') { pinned = !pinned; updatePanel(); }
   else if (c === 'shown') {

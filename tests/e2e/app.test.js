@@ -119,6 +119,31 @@ for (const edition of ['shared', 'personal']) {
         assert.deepEqual(r, { ok: false, reason: 'unknown' });
       });
 
+      await t.test('✋ permiso: Pal pregunta, «Permitir» lo aprueba y si contestas en otra parte se retira', async () => {
+        const body = JSON.stringify({ session_id: 'e2e-perm', cwd: 'C:\proyectos\permisos', tool_name: 'Bash', tool_input: { command: 'npm install' } });
+        const ask = () => P.http('/permission', { method: 'POST', headers: P.auth(), body });
+        const btn = () => P.page.waitForFunction(() => document.querySelector('#bubble .bubble-btn.primary'), null, { timeout: 6000 });
+        // 1) Permitir desde Pal
+        const r1 = ask();
+        await btn();
+        await new Promise(r => setTimeout(r, 1500));   // el bocadillo se escribe letra a letra
+        assert.match(await P.page.evaluate(() => document.getElementById('bubble').textContent), /permisos quiere usar Bash: npm install/);
+        await P.page.evaluate(() => document.querySelector('#bubble .bubble-btn.primary').click());
+        const j = JSON.parse(await (await r1).text());
+        assert.deepEqual(j, { hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: 'allow' } } });
+        // 2) Denegar
+        const r2 = ask();
+        await btn();
+        await P.page.evaluate(() => [...document.querySelectorAll('#bubble .bubble-btn')].find(b => /Denegar/.test(b.textContent)).click());
+        assert.equal(JSON.parse(await (await r2).text()).hookSpecificOutput.decision.behavior, 'deny');
+        // 3) contestaste en la terminal: llega otro evento de la sesión → Pal no decide y quita la pregunta
+        const r3 = ask();
+        await btn();
+        await P.http('/event', { method: 'POST', headers: P.auth(), body: JSON.stringify({ session_id: 'e2e-perm', cwd: 'C:\proyectos\permisos', hook_event_name: 'PostToolUse', tool_name: 'Bash' }) });
+        assert.equal(await (await r3).text(), '');
+        assert.ok(await until(() => P.page.evaluate(() => document.getElementById('bubble').classList.contains('hidden'))), 'la pregunta desaparece');
+      });
+
       await t.test('uso del plan: /statusline (curl) y /usage (hooks de Node)', async () => {
         const r = await P.http('/statusline', { method: 'POST', headers: P.auth(), body: JSON.stringify({ rate_limits: { five_hour: { used_percentage: 40 }, seven_day: { used_percentage: 10 } } }) });
         assert.match(await r.text(), /sesión 60% libre · semana 90% libre/);

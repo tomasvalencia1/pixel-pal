@@ -33,6 +33,20 @@
       </div>
       <div class="msg" id="hooksMsg"></div>
     </div>
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div><b>✋ Aprobar permisos desde Pal</b> <span id="permPill" class="pill no">…</span></div>
+          <div class="muted small">Cuando Claude pide permiso, Pal te pregunta con <b>Permitir</b> / <b>Denegar</b> / <b>Ver</b>. Si ya estás mirando esa ventana, no se mete; si no contestas en <input type="number" id="permWait" min="5" max="120" class="num"> s, sale el diálogo de siempre.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="permOn"><span></span></label>
+      </div>
+      <div class="row" id="permInstallRow" hidden>
+        <span class="muted small grow">Falta conectar el aviso de permisos con Claude Code (se añade una línea a su configuración, con copia de seguridad).</span>
+        <button class="btn primary" id="permInstall" type="button">Conectar</button>
+      </div>
+      <div class="msg" id="permMsg"></div>
+    </div>
 
     <h3 id="phone">📱 Avisos al móvil</h3>
     <div class="card">

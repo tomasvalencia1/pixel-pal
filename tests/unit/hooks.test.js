@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { create, curlCommand, EVENTS } = require('../../hooks');
+const { create, curlCommand, EVENTS, PERMISSION } = require('../../hooks');
 
 const LEGACY_HOOK = '"C:/node.exe" "C:/x/hooks/clawd-hook.js"';
 const LEGACY_SL = '"C:/node.exe" "C:/x/hooks/clawd-statusline.js"';
@@ -20,14 +20,20 @@ const read = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 const commands = s => Object.values(s.hooks || {}).flat().flatMap(e => e.hooks).map(h => h.command);
 const entry = command => ({ hooks: [{ type: 'command', command }] });
 
-test('instala los 8 eventos y la línea de estado en un settings vacío', () => {
+test('instala los 8 eventos, el de permisos y la línea de estado en un settings vacío', () => {
   const file = tmpSettings();
   const h = create({ settings: file, legacy: false });
   const st = h.install(7778, 'tok');
   assert.equal(st.installed, true);
   const s = read(file);
-  assert.equal(Object.keys(s.hooks).length, EVENTS.length);
+  assert.equal(Object.keys(s.hooks).length, EVENTS.length + 1);
+  const perm = s.hooks[PERMISSION][0].hooks[0];
+  assert.equal(perm.command, curlCommand(7778, 'tok', 'permission'));
+  assert.match(perm.command, /-m 600 /, 'espera la respuesta de Pal');
+  assert.equal(perm.timeout, 600);
+  delete s.hooks[PERMISSION];
   assert.ok(commands(s).every(c => c === curlCommand(7778, 'tok', 'event')));
+  assert.equal(h.permissionInstalled(7778, 'tok'), true);
   assert.equal(s.statusLine.command, curlCommand(7778, 'tok', 'statusline'));
   assert.equal(h.upToDate(7778, 'tok'), true);
   assert.equal(h.upToDate(7779, 'tok'), false, 'otro puerto = hay que reinstalar');
@@ -39,7 +45,7 @@ test('reinstalar no duplica y respeta los hooks y la línea de estado del usuari
   h.install(7778, 'tok');
   h.install(7778, 'tok');
   const s = read(file);
-  assert.equal(commands(s).filter(c => c.includes('x-clawd-token')).length, EVENTS.length);
+  assert.equal(commands(s).filter(c => c.includes('x-clawd-token')).length, EVENTS.length + 1);
   assert.ok(commands(s).includes(USER_HOOK));
   assert.equal(s.statusLine.command, 'mi-linea');
   // y se hizo copia de seguridad
@@ -69,6 +75,28 @@ test('con la misma clave y otro puerto se reconecta (cambio de puerto)', () => {
   const cmds = commands(read(file));
   assert.ok(!cmds.includes(old));
   assert.equal(cmds.filter(c => c === curlCommand(7778, 'tok', 'event')).length, EVENTS.length);
+});
+
+test('sin el de permisos no está al día (se reconecta para añadirlo)', () => {
+  const ev = curlCommand(7778, 'tok', 'event');
+  const file = tmpSettings({ hooks: Object.fromEntries(EVENTS.map(([e]) => [e, [entry(ev)]])) });
+  const h = create({ settings: file, legacy: false });
+  assert.equal(h.upToDate(7778, 'tok'), false);
+  h.install(7778, 'tok');
+  assert.equal(h.upToDate(7778, 'tok'), true);
+});
+
+test('la personal puede añadir solo el de permisos sin tocar sus hooks de Node', () => {
+  const file = tmpSettings({ hooks: { Stop: [entry(LEGACY_HOOK)] }, statusLine: { type: 'command', command: LEGACY_SL } });
+  const h = create({ settings: file, legacy: true });
+  h.installPermission(7777, 'tok');
+  h.installPermission(7777, 'tok');
+  const s = read(file);
+  assert.ok(commands(s).includes(LEGACY_HOOK));
+  assert.equal(s.statusLine.command, LEGACY_SL);
+  assert.equal(s.hooks[PERMISSION].length, 1, 'sin duplicados');
+  assert.equal(h.permissionInstalled(7777, 'tok'), true);
+  assert.equal(h.upToDate(7777, 'tok'), true);
 });
 
 test('restos de una clave antigua en el mismo puerto se limpian', () => {

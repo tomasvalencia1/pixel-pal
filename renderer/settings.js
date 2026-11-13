@@ -31,6 +31,7 @@ function render(s) {
       : 'No encontré Claude Code en este PC. Puedes conectarlo igualmente y funcionará cuando lo instales.';
     btn.textContent = 'Conectar'; btn.className = 'btn primary';
   }
+  permRender(s);
   $('autostart').checked = !!s.autostart;
   $('autostartNote').hidden = !!s.packaged;
   $('version').textContent = s.version || '—';
@@ -58,6 +59,25 @@ $('hooksBtn').addEventListener('click', async () => {
     setMsg(e.message, 'err');
     btn.disabled = false;
   }
+});
+
+// ---------- ✋ permisos desde Pal ----------
+function permRender(s) {
+  const p = s.perm || {};
+  $('permOn').checked = !!p.approve;
+  $('permWait').value = p.wait || 20;
+  const ready = p.approve && p.installed;
+  $('permPill').className = ready ? 'pill ok' : 'pill no';
+  $('permPill').textContent = !p.approve ? 'Apagado' : p.installed ? 'Activado' : 'Sin conectar';
+  $('permInstallRow').hidden = !(p.approve && !p.installed && s.hooks && s.hooks.installed);
+}
+$('permOn').addEventListener('change', async e => render(await window.ui.permSet({ approve: e.target.checked })));
+$('permWait').addEventListener('change', async e => render(await window.ui.permSet({ wait: e.target.value })));
+$('permInstall').addEventListener('click', async () => {
+  const r = await window.ui.permInstall();
+  const m = $('permMsg');
+  if (r.ok) { render(r.status); m.textContent = '¡Conectado! Funciona en las sesiones que abras a partir de ahora.'; m.className = 'msg ok'; }
+  else { m.textContent = r.error; m.className = 'msg err'; }
 });
 
 $('autostart').addEventListener('change', async e => {

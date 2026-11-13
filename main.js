@@ -193,6 +193,42 @@ function needsWindow(ev) {
   return !s || (!s.win && Date.now() - (s.winCheckedAt || 0) > 120000);
 }
 
+// ---------- ✋ permisos desde Pal ----------
+// Claude Code pregunta (hook PermissionRequest) y espera: Pal enseña Permitir / Denegar / Ver.
+// Si ya estás mirando la ventana de esa sesión, Pal no se mete; si no contestas a tiempo, sale el diálogo de siempre.
+const pendingPerms = new Map();   // id → { sessionId, res, timer }
+let permSeq = 0;
+const permWaitMs = () => Math.max(0, Math.min(120, Number(config.permWait ?? 20))) * 1000;
+function permAnswer(id, decision) {
+  const p = pendingPerms.get(id);
+  if (!p) return false;
+  pendingPerms.delete(id);
+  clearTimeout(p.timer);
+  let out = '';
+  if (decision === 'allow') out = JSON.stringify({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: 'allow' } } });
+  else if (decision === 'deny') out = JSON.stringify({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: 'deny', message: 'Denegado desde Pixel Pal' } } });
+  try { p.res.writeHead(200, { 'content-type': 'application/json' }); p.res.end(out); } catch { /* conexión cerrada */ }
+  sendCommand({ permDone: id });
+  if (decision === 'allow' || decision === 'deny') bump(decision === 'allow' ? 'permAllow' : 'permDeny');
+  return true;
+}
+// otro evento de la misma sesión = ya contestaste en la terminal o en la app
+function releasePerms(sessionId) {
+  for (const [id, p] of pendingPerms) if (p.sessionId === sessionId) permAnswer(id, 'pass');
+}
+function onPermission(ev, res) {
+  const s = sessions.get(ev.session_id);
+  const wait = permWaitMs();
+  const looking = s && s.win && fgWindow && Number(s.win.hwnd) === fgWindow;
+  if (config.permApprove === false || !wait || looking || !win || win.isDestroyed()) { res.writeHead(200); return res.end(''); }
+  const id = `p${++permSeq}`;
+  const detail = toolDetail(ev.tool_input);
+  const p = { sessionId: ev.session_id, res, timer: setTimeout(() => permAnswer(id, 'pass'), wait) };
+  pendingPerms.set(id, p);
+  res.on('close', () => { if (pendingPerms.get(id) === p) { pendingPerms.delete(id); clearTimeout(p.timer); sendCommand({ permDone: id }); } });
+  sendCommand({ perm: { id, project: s ? s.project : projectName(ev.cwd), tool: ev.tool_name || '', detail, canJump: !!(s && s.win), sessionId: ev.session_id, ms: wait } });
+}
+
 function handleEvent(ev) {
   if (!ev || !ev.session_id) return;
   logEvent(ev);
@@ -209,6 +245,7 @@ function handleEvent(ev) {
   if (ev.cwd) { s.cwd = ev.cwd; s.project = projectName(ev.cwd); }
   s.lastEvent = now;
   const prev = s.status;
+  if (name !== 'PermissionRequest' && name !== 'Notification' && pendingPerms.size) releasePerms(ev.session_id);
 
   switch (name) {
     case 'SessionStart':
@@ -248,6 +285,10 @@ function handleEvent(ev) {
         s.status = 'done';
       }
       phone.event('error', s, { limit: ev.error === 'rate_limit' });
+      break;
+    case 'PermissionRequest':
+      s.status = 'waiting';
+      s.message = `Quiere usar ${ev.tool_name || 'una herramienta'}${toolDetail(ev.tool_input) ? ': ' + toolDetail(ev.tool_input) : ''}`;
       break;
     case 'Notification':
       // El aviso de "esperando tu respuesta" tras terminar no cuenta como urgencia
@@ -371,6 +412,7 @@ function onSys(m) {
       setMedia(m);
       break;
     case 'fg': {
+      fgWindow = Number(m.id) || 0;
       const rect = toDip({ x: m.x, y: m.y, width: m.w, height: m.h });
       const work = screen.getDisplayMatching(rect).workArea;
       sendSys({ fg: { id: m.id, app: String(m.app || '').toLowerCase(), title: String(m.title || ''), shell: !!m.shell, full: !!m.full, max: !!m.max, min: !!m.min, rect, work } });
@@ -399,7 +441,8 @@ function onSys(m) {
 
 // ⚡ Se usa la versión compilada (system-watch.exe, ~10 MB) y, si falla o no está, la de PowerShell (~100 MB).
 let watchExeFailed = false;
-let watchUsesExe = false;   // solo la versión compilada entiende órdenes (who / focus)
+let watchUsesExe = false;
+let fgWindow = 0;           // ventana activa ahora mismo (la manda el vigilante)   // solo la versión compilada entiende órdenes (who / focus)
 // 🪟 Preguntas al vigilante: "who" (qué ventana hay detrás de una conexión) y "focus" (traer una ventana al frente)
 let watchReq = 0;
 const watchWait = new Map();
@@ -575,6 +618,20 @@ function startServer() {
       req.on('end', () => {
         try { setUsage(JSON.parse(body.replace(/^\uFEFF/, ''))); } catch { /* json roto */ }
         res.writeHead(204); res.end();
+      });
+      return;
+    }
+    // ✋ Claude Code pide permiso: se responde cuando decidas (o al pasar el tiempo, vacío = diálogo de siempre)
+    if (req.method === 'POST' && req.url === '/permission') {
+      let body = '';
+      req.on('data', c => { body += c; if (body.length > 5e6) req.destroy(); });
+      req.on('end', () => {
+        let ev = null;
+        try { ev = JSON.parse(body.replace(/^\uFEFF/, '')); } catch { /* json roto */ }
+        if (!ev || !ev.session_id) { res.writeHead(200); return res.end(''); }
+        ev.hook_event_name = 'PermissionRequest';
+        try { handleEvent(ev); } catch { /* nada */ }
+        onPermission(ev, res);
       });
       return;
     }
@@ -902,6 +959,8 @@ function setupIpc() {
     if ('sound' in p) patch.sound = !!p.sound;
     if ('breaks' in p) patch.breaks = !!p.breaks;
     const num = (v, a, b) => Number.isFinite(Number(v)) && Number(v) >= a && Number(v) <= b;
+    if ('permApprove' in p) patch.permApprove = !!p.permApprove;
+    if (num(p.permWait, 5, 120)) patch.permWait = Math.round(p.permWait);
     if (num(p.pomoFocus, 5, 120)) patch.pomoFocus = Math.round(p.pomoFocus);
     if (num(p.pomoBreak, 1, 60)) patch.pomoBreak = Math.round(p.pomoBreak);
     if (num(p.careEvery, 15, 240)) patch.careEvery = Math.round(p.careEvery);
@@ -937,6 +996,16 @@ function setupIpc() {
   // Le soltaste un archivo encima: abre la ventana de sesiones
   ipcMain.on('open-sessions', (_e, file) => openSessionsWindow(typeof file === 'string' ? file : null));
   ipcMain.on('sess-action', (_e, a) => sessAction(a));
+  ipcMain.handle('perm-answer', async (_e, a) => {
+    if (!a || typeof a !== 'object') return false;
+    const id = String(a.id || '');
+    const decision = ['allow', 'deny', 'pass'].includes(a.decision) ? a.decision : 'pass';
+    const p = pendingPerms.get(id);
+    const ok = permAnswer(id, decision);
+    // «Ver»: suelta el permiso (sale el diálogo) y te lleva a la ventana
+    if (ok && decision === 'pass' && p) { const s = sessions.get(p.sessionId); if (s && s.win) watchAsk(`focus {id} ${Number(s.win.hwnd) || 0}`, 1500); }
+    return ok;
+  });
   ipcMain.handle('focus-session', async (_e, id) => {
     const s = sessions.get(String(id || ''));
     if (!s || !s.win) return { ok: false, reason: 'unknown' };
@@ -1120,6 +1189,7 @@ function uiStatus() {
     edition: ED.name,
     serverError,
     hooks: hooks.status(PORT, TOKEN),
+    perm: { approve: config.permApprove !== false, wait: Number(config.permWait ?? 20), installed: hooks.permissionInstalled(PORT, TOKEN) },
     autostart: getAutostart(),
     onboarded: !!config.onboarded,
   };
@@ -1136,6 +1206,19 @@ function setupUiIpc() {
     catch (e) { return { ok: false, error: e.message }; }
   });
   ipcMain.handle('ui:set-autostart', (_e, on) => { setAutostart(!!on); return uiStatus(); });
+  // ✋ aprobar permisos desde Pal
+  ipcMain.handle('ui:perm-set', (_e, p) => {
+    p = p && typeof p === 'object' ? p : {};
+    const patch = {};
+    if ('approve' in p) patch.permApprove = !!p.approve;
+    if ('wait' in p) patch.permWait = Math.max(5, Math.min(120, Math.round(Number(p.wait) || 20)));
+    saveConfig(patch);
+    return uiStatus();
+  });
+  ipcMain.handle('ui:perm-install', () => {
+    try { hooks.installPermission(PORT, TOKEN); return { ok: true, status: uiStatus() }; }
+    catch (e) { return { ok: false, error: `No pude escribir la configuración de Claude Code: ${e.message}` }; }
+  });
   // 📱 avisos al móvil
   const phoneView = async () => {
     const st = phone.status();

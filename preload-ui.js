@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('ui', {
   installHooks: () => ipcRenderer.invoke('ui:install-hooks'),
   uninstallHooks: () => ipcRenderer.invoke('ui:uninstall-hooks'),
   setAutostart: on => ipcRenderer.invoke('ui:set-autostart', !!on),
+  permSet: p => ipcRenderer.invoke('ui:perm-set', p && typeof p === 'object' ? p : {}),
+  permInstall: () => ipcRenderer.invoke('ui:perm-install'),
   finishTutorial: () => ipcRenderer.invoke('ui:finish-tutorial'),
   preview: action => ipcRenderer.invoke('ui:preview', String(action || '')),
   open: page => ipcRenderer.invoke('ui:open', page),
