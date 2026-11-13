@@ -42,6 +42,7 @@ const TOKEN = ensureToken();
 const authorized = req => !req.headers.origin && req.headers['x-clawd-token'] === TOKEN;
 
 let win = null;
+let lastCursorKey = '', lastCursorAt = 0;   // última posición del cursor enviada a la ventana
 let tray = null;
 let serverError = null;
 const sessions = new Map();
@@ -55,6 +56,9 @@ function writeJson(file, data) {
 }
 let config = readJson(CONFIG_FILE, {});
 function saveConfig(patch) { config = { ...config, ...patch }; writeJson(CONFIG_FILE, config); }
+// ⚡ Pal es una ventanita transparente de pixel art: dibujada sin aceleración por hardware gasta menos CPU y RAM
+// (medido: tranquilo 0,6 % frente a 0,8 %; trabajando 2,5 % frente a 3,1 %; ~55 MB menos). "gpu": true en config.json la reactiva.
+if (!(config.gpu === true || process.env.PAL_GPU === '1')) app.disableHardwareAcceleration();
 // Puerto del servidor local (CLAWD_PORT para pruebas)
 const PORT = Number(process.env.CLAWD_PORT) || Number(config.port) || ED.port;
 
@@ -317,7 +321,7 @@ function setMedia(raw) {
 }
 let lastMediaRaw = { playing: false };
 
-// ---------- vigilante de Windows (scripts/system-watch.ps1) ----------
+// ---------- vigilante de Windows (scripts/system-watch.exe, o system-watch.ps1 si no se puede) ----------
 let claudeOn = null;
 function sendSys(o) { if (win && !win.isDestroyed()) win.webContents.send('sys', o); }
 function toDip(r) { try { return screen.screenToDipRect(null, r); } catch { return r; } }
@@ -355,11 +359,27 @@ function onSys(m) {
   }
 }
 
+// ⚡ Se usa la versión compilada (system-watch.exe, ~10 MB) y, si falla o no está, la de PowerShell (~100 MB).
+let watchExeFailed = false;
 function startSystemWatch() {
   try { fs.writeFileSync(path.join(DIR, 'track.txt'), '0'); } catch { /* nada */ }
+  const env = { ...process.env, CLAWD_TRACK: path.join(DIR, 'track.txt') };
+  const exe = path.join(UNPACKED, 'scripts', 'system-watch.exe');
+  const useExe = !watchExeFailed && process.env.PAL_WATCH !== 'ps1' && fs.existsSync(exe);
+  const startedAt = Date.now();
+  let gotData = false;
   try {
-    mediaChild = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(UNPACKED, 'scripts', 'system-watch.ps1')], { windowsHide: true, env: { ...process.env, CLAWD_TRACK: path.join(DIR, 'track.txt') } });
-  } catch { return; }
+    mediaChild = useExe
+      ? spawn(exe, [], { windowsHide: true, env })
+      : spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(UNPACKED, 'scripts', 'system-watch.ps1')], { windowsHide: true, env });
+  } catch { if (useExe) { watchExeFailed = true; return startSystemWatch(); } return; }
+  // si el .exe no arranca (bloqueado por un antivirus, sin .NET…), se pasa a PowerShell para siempre en esta sesión
+  let ended = false;
+  const child = mediaChild;
+  const restart = wait => { if (ended) return; ended = true; if (mediaChild === child) mediaChild = null; if (!app.isQuitting) setTimeout(startSystemWatch, wait); };
+  child.on('error', () => { if (useExe) watchExeFailed = true; restart(1000); });
+  child.on('exit', () => { if (useExe && !gotData && Date.now() - startedAt < 15000) watchExeFailed = true; restart(watchExeFailed && useExe ? 1000 : 10000); });
+  mediaChild.stdout.once('data', () => { gotData = true; });
   let buf = '';
   mediaChild.stdout.setEncoding('utf8');
   mediaChild.stdout.on('data', d => {
@@ -371,7 +391,6 @@ function startSystemWatch() {
       try { onSys(JSON.parse(lineTxt)); } catch { /* línea no JSON */ }
     }
   });
-  mediaChild.on('exit', () => { mediaChild = null; if (!app.isQuitting) setTimeout(startSystemWatch, 10000); });
 }
 app.on('before-quit', () => { app.isQuitting = true; if (mediaChild) mediaChild.kill(); });
 app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch { /* nada */ } });
@@ -656,7 +675,14 @@ function createWindow() {
     if (!win || win.isDestroyed() || !win.isVisible()) return;
     const p = screen.getCursorScreenPoint();
     const b = win.getBounds();
+    const key = `${p.x},${p.y},${b.x},${b.y}`;
+    if (key === lastCursorKey) return;   // ratón quieto: nada que contar
     const inside = p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+    // ⚡ lejos de Pal (a más de 200 px) basta con contarlo 2-3 veces por segundo
+    const near = p.x >= b.x - 200 && p.x < b.x + b.width + 200 && p.y >= b.y - 200 && p.y < b.y + b.height + 200;
+    const now = Date.now();
+    if (!near && now - lastCursorAt < 400) return;
+    lastCursorKey = key; lastCursorAt = now;
     win.webContents.send('cursor', { x: p.x - b.x, y: p.y - b.y, inside });
   }, 80);
 }

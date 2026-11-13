@@ -2031,6 +2031,7 @@ const ClawdSprite = (() => {
   }
 
   function setup(canvas) {
+    lastPx = null;   // lienzo nuevo: hay que pintarlo sí o sí
     U = Math.max(1, Math.round(4 * (window.devicePixelRatio || 1)));
     canvas.width = GW * U;
     canvas.height = GH * U;
@@ -2038,7 +2039,21 @@ const ClawdSprite = (() => {
     return fctx;
   }
 
+  // ⚡ Pal es pixel art: muchos fotogramas salen idénticos. Si el dibujo (40×46) y la sombra no cambiaron,
+  // no se toca el lienzo visible y la GPU no tiene nada que volver a componer.
+  let lastPx = null, lastShadow = '';
+  let presented = 0, skipped = 0;
+  function sameAsLast() {
+    const px = new Uint32Array(o.getImageData(0, 0, GW, GH).data.buffer);
+    const sh = `${R(shadowW)},${R(shadowDx)}`;
+    let same = !!lastPx && sh === lastShadow;
+    if (same) for (let i = 0; i < px.length; i++) if (px[i] !== lastPx[i]) { same = false; break; }
+    lastPx = px; lastShadow = sh;
+    return same;
+  }
   function present() {
+    if (sameAsLast()) { skipped++; return; }
+    presented++;
     fctx.setTransform(1, 0, 0, 1, 0, 0);
     fctx.clearRect(0, 0, fctx.canvas.width, fctx.canvas.height);
     fctx.imageSmoothingEnabled = false;
@@ -2061,7 +2076,7 @@ const ClawdSprite = (() => {
 
   function draw(_ctx, t, action, opts = {}) {
     O = opts;
-    const dt = Math.min(0.05, Math.max(0, t - lastT));
+    const dt = Math.min(0.15, Math.max(0, t - lastT));   // a pocos fps las partículas no van a cámara lenta
     lastT = t;
     if (!A[action]) action = 'idle';
     if (action !== cur) {
@@ -2179,8 +2194,9 @@ const ClawdSprite = (() => {
     return false;
   }
 
+  const frameStats = () => ({ presented, skipped });
   return {
-    setup, draw, trigger, isOpaque, setSkin, ACTIONS: Object.keys(A).filter(a => a !== 'wake'),
+    frameStats, setup, draw, trigger, isOpaque, setSkin, ACTIONS: Object.keys(A).filter(a => a !== 'wake'),
     // herramientas de dibujo para los personajes de skins.js
     api: { rect, px, line, circle, alpha, bitmap, C, R, clamp, drawEyes, drawMouth, spawn: p => { if (particles.length < 90) particles.push(p); } },
   };

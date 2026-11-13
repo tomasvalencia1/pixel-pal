@@ -22,7 +22,8 @@ const Menu = (() => {
     if ($('pName').textContent !== s.name) $('pName').textContent = s.name;
     const n = (state.sessions || []).length;
     const active = (state.sessions || []).filter(x => ['working', 'thinking', 'waiting'].includes(x.status)).length;
-    $('pCount').textContent = n ? (active ? `${active} activa${active === 1 ? '' : 's'} de ${n}` : `${n}`) : '';
+    const count = n ? (active ? `${active} activa${active === 1 ? '' : 's'} de ${n}` : `${n}`) : '';
+    if ($('pCount').textContent !== count) $('pCount').textContent = count;
     // al cerrarse el panel, "Más" vuelve a plegarse
     if (panel.classList.contains('hidden') && !more.classList.contains('hidden')) setMore(false);
   }

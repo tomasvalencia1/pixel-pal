@@ -1,6 +1,6 @@
 {
   "name": "clawd-flotante",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Pixel Pal: Desktop Pet — una mascota de escritorio que muestra el progreso de tus sesiones de Claude Code",
   "main": "main.js",
   "private": true,
@@ -10,7 +10,8 @@
     "test": "node --test \"tests/unit/*.test.js\" && node --test --test-concurrency=1 \"tests/e2e/*.test.js\"",
     "test:unit": "node --test \"tests/unit/*.test.js\"",
     "icon": "node tools/make-icon.js",
-    "dist": "electron-builder --win nsis"
+    "dist": "node tools/build-watcher.js && electron-builder --win nsis",
+    "build:watcher": "node tools/build-watcher.js"
   },
   "devDependencies": {
     "electron": "^33.4.11",

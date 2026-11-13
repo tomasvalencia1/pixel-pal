@@ -385,7 +385,7 @@ function renderPanel() {
     nowPlaying.append(icon, txt);
   } else nowPlaying.className = 'hidden';
 }
-setInterval(renderPanel, 1000);
+setInterval(() => { if (!panel.classList.contains('hidden')) renderPanel(); }, 1000);
 
 // ---------- qué acción toca ----------
 function workingSession() {
@@ -646,7 +646,13 @@ function setCaption(action) {
 }
 
 let lastFrame = performance.now();
+let frameStart = 0;
 function frame(ms) {
+  frameRaf = 0;
+  const t0 = performance.now();
+  // a 20-30 fps se usa el refresco de la pantalla saltando los que sobran (los temporizadores de Windows van a saltos de 16 ms)
+  if (fpsNow >= 20 && t0 - frameStart < 1000 / fpsNow - 6) { frameRaf = requestAnimationFrame(frame); return; }
+  frameStart = t0;
   const now = Date.now();
   const dt = Math.min(0.1, (ms - lastFrame) / 1000);
   lastFrame = ms;
@@ -673,9 +679,38 @@ function frame(ms) {
     special: specialKey(special, action),
   });
   setCaption(demoStart || (preview && now < previewUntil) ? '' : action);
-  requestAnimationFrame(frame);
+  scheduleFrame(fpsFor(action, game, ex, music, now));
 }
-requestAnimationFrame(frame);
+let frameTimer = 0, frameRaf = 0;
+frameRaf = requestAnimationFrame(frame);
+
+// ⚡ Ahorro: a 4 px por píxel, 30 fps se ven igual de suaves que 60. Trabajando, 20 (el pixel art clásico va a 8-12);
+// tranquilo, 15; durmiendo, 5. Si lo tocas, lo arrastras, juegas, suena música o se mueve por la pantalla, 30 al momento.
+const CALM_FPS = { sleeping: 5, idle: 15, sit: 15 };
+const WORK_FPS = 20;
+let fpsNow = 30;
+function fpsFor(action, game, ex, music, now) {
+  if (down || game || (ex && ex.play) || music || Play.cur || demoStart || (preview && now < previewUntil)) return 30;
+  if (hoverClawd || hoverPanel || !panel.classList.contains('hidden')) return 30;
+  return CALM_FPS[action] || WORK_FPS;
+}
+// Un único "siguiente fotograma" pendiente (temporizador o rAF): nunca hay dos bucles a la vez
+function queueFrame(wait) {
+  clearTimeout(frameTimer); cancelAnimationFrame(frameRaf);
+  frameTimer = 0; frameRaf = 0;
+  if (wait <= 4) frameRaf = requestAnimationFrame(frame);
+  else frameTimer = setTimeout(() => { frameTimer = 0; frame(performance.now()); }, wait);
+}
+function scheduleFrame(fps) {
+  fpsNow = fps;
+  // ventana oculta: casi nada (1 fps) hasta que vuelva a verse
+  if (document.hidden) fpsNow = fps = 1;
+  if (fps >= 20) queueFrame(0);
+  else queueFrame(1000 / fps - (performance.now() - frameStart));
+}
+// en cuanto pasa algo (ratón encima, un evento de Claude…), el siguiente fotograma no espera
+function wakeFrames() { if (fpsNow < 30) { fpsNow = 30; queueFrame(0); } }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) wakeFrames(); });
 
 // ---------- "Quédate sentado" ----------
 function setSitting(v, speak = true) {
@@ -729,7 +764,7 @@ function updatePanel() {
   const show = !(window.Talk && Talk.isOpen()) && (pinned || ((hoverClawd && !hoverGame || hoverPanel) && !(down && down.moved)));
   pinIcon.classList.toggle('on', pinned);
   clearTimeout(hideTimer);
-  if (show) { panel.classList.remove('hidden'); document.body.classList.add('panel-open'); }
+  if (show) { if (panel.classList.contains('hidden')) renderPanel(); panel.classList.remove('hidden'); document.body.classList.add('panel-open'); wakeFrames(); }
   else {
     hideTimer = setTimeout(() => {
       panel.classList.add('hidden');
@@ -757,6 +792,7 @@ function hitTest(x, y, inside = true) {
     hoverClawd = onClawd;
     hoverPanel = onPanel;
     canvas.style.cursor = onClawd ? 'grab' : 'default';
+    if (onClawd || onPanel) wakeFrames();
     updatePanel();
   }
 }

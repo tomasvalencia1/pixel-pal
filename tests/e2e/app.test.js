@@ -150,6 +150,18 @@ for (const edition of ['shared', 'personal']) {
         assert.ok(r.skins.includes(edition === 'personal' ? 'turquesa' : 'naranja'));
       });
 
+      await t.test('usa el vigilante compilado (no PowerShell)', async () => {
+        const pid = P.app.process().pid;
+        const kids = await until(() => {
+          const out = require('child_process').execFileSync('powershell.exe', ['-NoProfile', '-Command',
+            // descendientes del proceso lanzado (Playwright arranca Electron a través de otro proceso)
+            `$all = Get-CimInstance Win32_Process; $ids = @(${pid}); do { $n = $ids.Count; $ids = @($ids + ($all | Where-Object { $ids -contains $_.ParentProcessId } | ForEach-Object ProcessId) | Select-Object -Unique) } while ($ids.Count -ne $n); ($all | Where-Object { $ids -contains $_.ProcessId }).Name -join ","`], { encoding: 'utf8' });
+          return /system-watch.exe/i.test(out) ? out : null;
+        }, 10000, 500);
+        assert.ok(kids, 'system-watch.exe está en marcha');
+        assert.doesNotMatch(kids, /powershell/i);
+      });
+
       await t.test('sin errores en ninguna ventana', async () => {
         await wait(500);
         assert.deepEqual(P.errors, []);

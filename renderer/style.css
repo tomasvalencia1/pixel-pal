@@ -212,6 +212,8 @@ body.panel-open #bubble.ask { visibility: visible; }
 body.flip-h #panel { right: auto; left: 8px; }
 body.flip-v #panel { bottom: auto; top: 220px; }
 #panel.hidden { opacity: 0; transform: translateY(6px); pointer-events: none; }
+/* ⚡ con el panel cerrado, sus animaciones infinitas (música, aviso) se paran: no hace falta repintar lo que no se ve */
+#panel.hidden * { animation-play-state: paused !important; }
 body.flip-v #panel.hidden { transform: translateY(-6px); }
 #panel::-webkit-scrollbar { width: 6px; }
 #panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 3px; }
