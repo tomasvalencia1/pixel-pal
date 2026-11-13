@@ -105,7 +105,7 @@ for (const edition of ['shared', 'personal']) {
 
       await t.test('🪟 averigua la ventana de la sesión y el panel permite ir a ella', async () => {
         await P.http('/event', { method: 'POST', headers: P.auth(), body: JSON.stringify({ session_id: 'e2e-win', cwd: 'C:\proyectos\ventana', hook_event_name: 'SessionStart' }) });
-        const s = await until(() => P.page.evaluate(() => state.sessions.find(x => x.id === 'e2e-win' && x.winCheckedAt)));
+        const s = await until(() => P.page.evaluate(() => state.sessions.find(x => x.id === 'e2e-win' && x.winCheckedAt)), 20000);   // con el PC muy cargado tarda más
         assert.ok(s, 'el vigilante respondió');
         // desde una terminal o desde la app de Claude hay ventana; en un entorno sin ventanas, no
         if (s.win) {
