@@ -16,6 +16,26 @@ const pinIcon = document.getElementById('pin');
 const sitBtn = document.getElementById('sit');
 const ctx = ClawdSprite.setup(canvas);
 
+// 📏 Tamaño de Pal: el lienzo se rehace a la nueva escala (píxeles enteros, nítido) y se alinea abajo y al centro
+// de su caja de 160×184, así los pies quedan en el mismo sitio (aterrizar, subirse a ventanas…). Si es más alto,
+// --pal-extra sube la burbuja, la leyenda y el panel.
+const SIZES = { small: 0.75, normal: 1, big: 1.2 };
+let palSize = 'normal';
+function applySize(size) {
+  size = SIZES[size] ? size : 'normal';
+  if (size === palSize) return;   // sin cambios: no se rehace el lienzo (se quedaría en blanco un instante)
+  palSize = size;
+  const dpr = window.devicePixelRatio || 1;
+  const U = Math.max(1, Math.round(4 * dpr * SIZES[size]));
+  ClawdSprite.setup(canvas, SIZES[size]);
+  const w = (40 * U) / dpr, h = (46 * U) / dpr;
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
+  canvas.style.marginLeft = `${(160 - w) / 2}px`;
+  canvas.style.marginTop = `${184 - h}px`;
+  document.body.style.setProperty('--pal-extra', `${Math.max(0, Math.ceil(h - 184))}px`);
+}
+
 let state = { sessions: [], now: Date.now() };
 let clockOffset = 0;
 const prevStatus = new Map();
@@ -840,6 +860,7 @@ window.clawd.onPrefs(p => applyPrefs(p, false));
 function applyPrefs(p, speak) {
   if (!p) return;
   Calm.set(p);
+  if ('size' in p) applySize(p.size);
   if ('sit' in p) setSitting(!!p.sit, speak && p.sit !== sitting);
   if ('dance' in p) setDance(p.dance !== false, false);
   if (window.Extras) Extras.setPrefs(p);

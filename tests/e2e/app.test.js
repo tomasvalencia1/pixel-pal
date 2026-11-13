@@ -104,8 +104,9 @@ for (const edition of ['shared', 'personal']) {
       });
 
       await t.test('🪟 averigua la ventana de la sesión y el panel permite ir a ella', async () => {
-        await P.http('/event', { method: 'POST', headers: P.auth(), body: JSON.stringify({ session_id: 'e2e-win', cwd: 'C:\proyectos\ventana', hook_event_name: 'SessionStart' }) });
-        const s = await until(() => P.page.evaluate(() => state.sessions.find(x => x.id === 'e2e-win' && x.winCheckedAt)), 20000);   // con el PC muy cargado tarda más
+        // como una sesión real: si el vigilante aún estaba arrancando, el siguiente evento vuelve a mirar
+        const send = () => P.http('/event', { method: 'POST', headers: P.auth(), body: JSON.stringify({ session_id: 'e2e-win', cwd: 'C:/proyectos/ventana', hook_event_name: 'UserPromptSubmit' }) });
+        const s = await until(async () => { await send(); return P.page.evaluate(() => state.sessions.find(x => x.id === 'e2e-win' && x.winCheckedAt)); }, 20000, 1500);
         assert.ok(s, 'el vigilante respondió');
         // desde una terminal o desde la app de Claude hay ventana; en un entorno sin ventanas, no
         if (s.win) {
@@ -331,6 +332,21 @@ for (const edition of ['shared', 'personal']) {
           return out;
         });
         assert.deepEqual(c, { allowsImportant: false, allowsUrgent: true, reduce: true, back: true });
+      });
+
+      await t.test('📏 tamaño: pequeño, grande y normal, con los pies en el mismo sitio', async () => {
+        const r = await P.page.evaluate(async () => {
+          const c = document.getElementById('clawd');
+          const m = () => { const b = c.getBoundingClientRect(); return { w: b.width, bottom: Math.round(b.bottom), extra: getComputedStyle(document.body).getPropertyValue('--pal-extra').trim() }; };
+          applyPrefs({ size: 'small' }, false); const small = m();
+          applyPrefs({ size: 'big' }, false); const big = m();
+          applyPrefs({ size: 'normal' }, false); const normal = m();
+          return { small, big, normal };
+        });
+        assert.ok(r.small.w < 160 && r.big.w > 160 && r.normal.w === 160, JSON.stringify(r));
+        assert.ok(Math.abs(r.small.bottom - r.normal.bottom) <= 1 && Math.abs(r.big.bottom - r.normal.bottom) <= 1, 'los pies no se mueven');
+        assert.notEqual(r.big.extra, '0px');
+        assert.equal(r.normal.extra, '0px');
       });
 
       await t.test('sin errores en ninguna ventana', async () => {

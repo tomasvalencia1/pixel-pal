@@ -77,7 +77,9 @@ function calmRender(s) {
   $('chatty').value = String(Number.isInteger(c.chatty) ? c.chatty : 2);
   $('motion').value = c.motion || 'auto';
   $('hideCapture').checked = !!c.hideCapture;
+  $('palSize').value = c.size || 'normal';
 }
+$('palSize').addEventListener('change', e => calmSet({ size: e.target.value }));
 const calmSet = async p => { try { render(await window.ui.calmSet(p)); } catch (e) { $('calmMsg').textContent = e.message; $('calmMsg').className = 'msg err'; } };
 $('dnd').addEventListener('change', e => calmSet({ dnd: e.target.value }));
 $('qhOn').addEventListener('change', e => calmSet({ quietHours: { on: e.target.checked } }));

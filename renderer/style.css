@@ -40,7 +40,7 @@ html, body {
   pointer-events: none;
 }
 body.flip-h #stage { right: auto; left: 8px; }
-body.flip-v #stage { bottom: auto; top: 4px; }
+body.flip-v #stage { bottom: auto; top: calc(4px + var(--pal-extra, 0px)); }
 
 #sprite {
   position: absolute;
@@ -63,7 +63,7 @@ body.flip-v #sprite { bottom: auto; top: 0; }
 #caption {
   position: absolute;
   left: 50%;
-  bottom: 188px;
+  bottom: calc(188px + var(--pal-extra, 0px));
   transform: translateX(-50%);
   max-width: 210px;
   padding: 3px 9px;
@@ -85,7 +85,7 @@ body.flip-v #caption { bottom: auto; top: 186px; }
 #bubble {
   position: absolute;
   right: 16px;
-  bottom: 166px;
+  bottom: calc(166px + var(--pal-extra, 0px));
   width: max-content;
   max-width: 230px;
   min-height: 30px;
@@ -198,9 +198,9 @@ body.panel-open #bubble.ask { visibility: visible; }
 #panel {
   position: absolute;
   right: 8px;
-  bottom: 216px;
+  bottom: calc(216px + var(--pal-extra, 0px));
   width: 320px;
-  max-height: 372px;
+  max-height: calc(372px - var(--pal-extra, 0px));   /* con Pal grande, el panel cede lo que crece Pal */
   overflow-y: auto;
   padding: 10px;
   border-radius: 14px;
@@ -210,7 +210,7 @@ body.panel-open #bubble.ask { visibility: visible; }
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 body.flip-h #panel { right: auto; left: 8px; }
-body.flip-v #panel { bottom: auto; top: 220px; }
+body.flip-v #panel { bottom: auto; top: calc(220px + var(--pal-extra, 0px)); }
 #panel.hidden { opacity: 0; transform: translateY(6px); pointer-events: none; }
 /* ⚡ con el panel cerrado, sus animaciones infinitas (música, aviso) se paran: no hace falta repintar lo que no se ve */
 #panel.hidden * { animation-play-state: paused !important; }
@@ -286,12 +286,12 @@ body.flip-v #panel.hidden { transform: translateY(-6px); }
 /* ---------- 💬 hablar con Pal ---------- */
 .opts { flex-wrap: wrap; }
 #talk {
-  position: absolute; right: 8px; bottom: 216px; width: 320px; height: 272px;
+  position: absolute; right: 8px; bottom: calc(216px + var(--pal-extra, 0px)); width: 320px; height: 272px;
   display: flex; flex-direction: column; border-radius: 14px; background: var(--card);
   border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); z-index: 3; user-select: text;
 }
 body.flip-h #talk { right: auto; left: 8px; }
-body.flip-v #talk { bottom: auto; top: 220px; }
+body.flip-v #talk { bottom: auto; top: calc(220px + var(--pal-extra, 0px)); }
 body.talk-open #panel { display: none; }
 body.talk-open #bubble:not(.ask), body.talk-open #caption { visibility: hidden; }
 .talk-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }

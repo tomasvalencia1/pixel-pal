@@ -2076,9 +2076,10 @@ const ClawdSprite = (() => {
     effects.push({ type, start: lastT });
   }
 
-  function setup(canvas) {
+  // scale: tamaño de Pal (0.75 pequeño, 1 normal, 1.2 grande); cada píxel del dibujo ocupa U píxeles reales (nítido)
+  function setup(canvas, scale = 1) {
     lastPx = null;   // lienzo nuevo: hay que pintarlo sí o sí
-    U = Math.max(1, Math.round(4 * (window.devicePixelRatio || 1)));
+    U = Math.max(1, Math.round(4 * (window.devicePixelRatio || 1) * scale));
     canvas.width = GW * U;
     canvas.height = GH * U;
     fctx = canvas.getContext('2d');

@@ -780,9 +780,17 @@ function layoutFor([x, y], prev) {
   };
 }
 
+// 📏 Pal grande: cuánto más alto es el dibujo (DIP), para dejarle sitio arriba cuando el panel sale hacia abajo
+function palExtra(x = anchor ? anchor[0] : 0, y = anchor ? anchor[1] : 0) {
+  if (config.size !== 'big') return 0;
+  const dpr = screen.getDisplayNearestPoint({ x: Math.round(x + 80), y: Math.round(y + 100) }).scaleFactor || 1;
+  const U = Math.round(4 * dpr * 1.2);
+  return Math.max(0, Math.ceil((46 * U) / dpr - 184));
+}
+
 function boundsFor([x, y], L) {
   const offX = L.left ? 8 : WIN_W - 8 - SPRITE_W;
-  const offY = L.down ? 4 : WIN_H - 4 - STAGE_H + CAPTION_H;
+  const offY = L.down ? 4 + palExtra(x, y) : WIN_H - 4 - STAGE_H + CAPTION_H;
   return { x: Math.round(x - offX), y: Math.round(y - offY), width: WIN_W, height: WIN_H };
 }
 
@@ -1149,7 +1157,7 @@ function prefsPayload() {
     sit: !!config.sit, dance: config.dance !== false, sound: config.sound !== false, tts: !!config.tts, breaks: config.breaks !== false, outfit: getOutfit(),
     pomoFocus: config.pomoFocus || 25, pomoBreak: config.pomoBreak || 5, careEvery: config.careEvery || 45,
     ride: config.ride || 'ask', fsHide: config.fsHide || 'ask', appModes: config.appModes || {},
-    chatty: Number.isInteger(config.chatty) ? config.chatty : 2, motion: config.motion || 'auto', quiet,
+    chatty: Number.isInteger(config.chatty) ? config.chatty : 2, motion: config.motion || 'auto', quiet, size: config.size || 'normal',
   };
 }
 
@@ -1270,7 +1278,7 @@ function uiStatus() {
     edition: ED.name,
     serverError,
     hooks: hooks.status(PORT, TOKEN),
-    calm: { dndUntil: Number(config.dndUntil) || 0, quietHours: config.quietHours || { on: false, from: '22:00', to: '08:00' }, respectFocus: config.respectFocus !== false, chatty: Number.isInteger(config.chatty) ? config.chatty : 2, hideCapture: !!config.hideCapture, motion: config.motion || 'auto', quiet },
+    calm: { dndUntil: Number(config.dndUntil) || 0, quietHours: config.quietHours || { on: false, from: '22:00', to: '08:00' }, respectFocus: config.respectFocus !== false, chatty: Number.isInteger(config.chatty) ? config.chatty : 2, hideCapture: !!config.hideCapture, motion: config.motion || 'auto', size: config.size || 'normal', quiet },
     perm: { approve: config.permApprove !== false, wait: Number(config.permWait ?? 20), installed: hooks.permissionInstalled(PORT, TOKEN) },
     autostart: getAutostart(),
     onboarded: !!config.onboarded,
@@ -1302,7 +1310,9 @@ function setupUiIpc() {
     if ('chatty' in p) patch.chatty = Math.max(0, Math.min(3, Math.round(Number(p.chatty)) || 0));
     if ('hideCapture' in p) { patch.hideCapture = !!p.hideCapture; if (win && !win.isDestroyed()) win.setContentProtection(patch.hideCapture); }
     if (['auto', 'less', 'full'].includes(p.motion)) patch.motion = p.motion;
+    if (['small', 'normal', 'big'].includes(p.size)) patch.size = p.size;
     saveConfig(patch);
+    if (patch.size) applyLayout();
     updateQuiet();
     if (win && !win.isDestroyed()) win.webContents.send('prefs', prefsPayload());
     return uiStatus();
