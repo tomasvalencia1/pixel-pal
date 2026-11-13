@@ -2074,6 +2074,25 @@ const ClawdSprite = (() => {
 
   let dxState = 0;
 
+  // 🎬 Capa de «muelle» para todas las animaciones y personajes (principios de animación):
+  // aplastar al aterrizar y estirar al despegar, con un rebote amortiguado. En pixel art basta con 1-2 píxeles.
+  const spring = { x: 0, v: 0, lastBob: 0 };
+  function springStep(P, dt, changed) {
+    const rising = P.bob < spring.lastBob - 0.5;                 // subiendo (bob negativo = arriba)
+    if (spring.lastBob <= -3 && P.bob >= 0) spring.v -= 26;      // aterriza: aplastar
+    else if (rising && spring.lastBob >= -1) spring.v += 14;      // despega: estirar
+    if (changed) spring.v -= 9;                                    // cambio de acción: botecito
+    spring.lastBob = P.bob;
+    if (dt > 0) {                                                  // muelle amortiguado
+      const k = 220, c = 15;
+      spring.v += (-k * spring.x - c * spring.v) * dt;
+      spring.x += spring.v * dt;
+    }
+    spring.x = clamp(spring.x, -2.5, 2.5);
+    const s = R(spring.x);
+    if (s) { P.sy += s; P.sx -= s; }
+  }
+
   function draw(_ctx, t, action, opts = {}) {
     O = opts;
     const dt = Math.min(0.15, Math.max(0, t - lastT));   // a pocos fps las partículas no van a cámara lenta
@@ -2121,6 +2140,8 @@ const ClawdSprite = (() => {
 
     // manías y easter eggs del personaje
     if (SKIN && SKIN.pose && !opts.dragging) SKIN.pose(P, active, t, opts);
+    // 🎬 muelle: estira al despegar, se aplasta al aterrizar y rebota un poco al cambiar de acción
+    if (!opts.dragging) springStep(P, dt, t === changeAt);
 
     // desplazamiento lateral suave (por ejemplo, se corre a un lado para usar la laptop)
     const target = P.dx;
