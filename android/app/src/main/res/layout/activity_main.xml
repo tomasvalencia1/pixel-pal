@@ -77,7 +77,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="6dp"
-            android:text="Activado = ⏰ alarma: Pal aparece en pantalla completa, te lo cuenta y suena hasta que pulses Vale. Desactivado = 🔔 notificación normal."
+            android:text="Activado = ⏰ alarma: Pal aparece en pantalla completa y te lo cuenta en voz alta. Desactivado = 🔔 notificación normal."
             android:textColor="@color/muted"
             android:textSize="13sp" />
 
@@ -107,6 +107,13 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="🗣️ Que Pal lo diga en voz alta"
+            android:textColor="@color/text"
+            android:textSize="15sp" />
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swSound"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⏰ Además, sonido de alarma"
             android:textColor="@color/text"
             android:textSize="15sp" />
 

@@ -13,6 +13,10 @@ object Prefs {
     fun isAlarm(ctx: Context, kind: String) = p(ctx).getBoolean("alarm_$kind", true)
     fun setAlarm(ctx: Context, kind: String, on: Boolean) = p(ctx).edit().putBoolean("alarm_$kind", on).apply()
 
+    // Sonido de alarma: apagado por defecto (Pal solo lo dice en voz alta)
+    fun alarmSound(ctx: Context) = p(ctx).getBoolean("alarm_sound", false)
+    fun setAlarmSound(ctx: Context, on: Boolean) = p(ctx).edit().putBoolean("alarm_sound", on).apply()
+
     fun voice(ctx: Context) = p(ctx).getBoolean("voice", true)
     fun setVoice(ctx: Context, on: Boolean) = p(ctx).edit().putBoolean("voice", on).apply()
 

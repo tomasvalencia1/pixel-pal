@@ -24,7 +24,7 @@ import org.json.JSONObject
 import java.util.Locale
 
 // ⏰ Alarma: pantalla completa (también con el móvil bloqueado) con el mismo Pal del PC, animado,
-// contándote el aviso en un bocadillo y en voz alta. Suena y vibra hasta que pulses «Vale».
+// contándote el aviso en un bocadillo y en voz alta. Con el sonido de alarma activado, suena hasta que pulses «Vale».
 class AlarmActivity : AppCompatActivity() {
     companion object {
         const val MAX_RING_MS = 90_000L   // la alarma se calla sola al minuto y medio (la pantalla sigue)
@@ -79,8 +79,10 @@ class AlarmActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.later).apply { text = getString(R.string.silence); isEnabled = true }
 
-        vibrate()
-        if (Prefs.voice(this)) speak("$title. $body") { ring() } else ring()
+        // Por defecto: una vibración corta y Pal lo lee en voz alta. El sonido de alarma solo si lo activas.
+        val sound = Prefs.alarmSound(this)
+        vibrate(repeat = sound)
+        if (Prefs.voice(this)) speak("$title. $body") { if (sound) ring() } else if (sound) ring()
         handler.postDelayed({ stopRinging() }, MAX_RING_MS)
     }
 
@@ -114,11 +116,11 @@ class AlarmActivity : AppCompatActivity() {
         }.getOrNull()
     }
 
-    private fun vibrate() {
+    private fun vibrate(repeat: Boolean) {
         val v = if (Build.VERSION.SDK_INT >= 31) getSystemService(VibratorManager::class.java).defaultVibrator
         else @Suppress("DEPRECATION") getSystemService(Vibrator::class.java)
         vibrator = v
-        v?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 600, 400, 600, 1200), 0))
+        v?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 600, 400, 600, 1200), if (repeat) 0 else -1))
     }
 
     private fun stopRinging() {

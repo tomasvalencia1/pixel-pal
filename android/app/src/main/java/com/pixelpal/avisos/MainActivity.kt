@@ -50,6 +50,10 @@ class MainActivity : AppCompatActivity() {
             isChecked = Prefs.voice(this@MainActivity)
             setOnCheckedChangeListener { _, on -> Prefs.setVoice(this@MainActivity, on) }
         }
+        findViewById<MaterialSwitch>(R.id.swSound).apply {
+            isChecked = Prefs.alarmSound(this@MainActivity)
+            setOnCheckedChangeListener { _, on -> Prefs.setAlarmSound(this@MainActivity, on) }
+        }
         findViewById<Button>(R.id.testAlarm).setOnClickListener {
             startActivity(AlarmActivity.intent(this, "test", "Pixel Pal", "¡Hola! Así te avisaré cuando termine Claude", "prueba"))
         }

@@ -7,8 +7,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioAttributes
-import android.media.RingtoneManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
@@ -18,10 +16,11 @@ import androidx.core.content.ContextCompat
 object Notifs {
     const val NORMAL = "pal"          // Claude terminó
     const val URGENT = "pal_urgent"   // necesita permiso, errores
-    const val ALARM = "pal_alarm"     // ⏰ modo alarma: pantalla completa con Pal
+    const val ALARM = "pal_alarm_voz"   // ⏰ modo alarma: pantalla completa con Pal (sin sonido: Pal habla)
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
+        nm.deleteNotificationChannel("pal_alarm")   // el canal antiguo sonaba como una alarma
         nm.createNotificationChannel(NotificationChannel(NORMAL, "Claude terminó", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Cuando una sesión de Claude acaba su trabajo"
         })
@@ -32,8 +31,7 @@ object Notifs {
         nm.createNotificationChannel(NotificationChannel(ALARM, "Alarmas de Pal", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Pal aparece en pantalla completa y suena como una alarma"
             enableVibration(true)
-            val alarm = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            setSound(alarm, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+            setSound(null, null)   // el sonido lo pone la pantalla de alarma (voz de Pal, o alarma si la activas)
             setBypassDnd(true)
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         })
