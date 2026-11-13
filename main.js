@@ -754,7 +754,9 @@ function applyLayout() {
 function sendPos() {
   if (!win || win.isDestroyed() || !anchor) return;
   const work = screen.getDisplayNearestPoint({ x: Math.round(anchor[0] + 80), y: Math.round(anchor[1] + 100) }).workArea;
-  win.webContents.send('pos', { anchor, work });
+  // todas las pantallas (sin la barra de tareas): para volar de un monitor a otro y saber dónde está el suelo
+  const displays = screen.getAllDisplays().map(d => d.workArea);
+  win.webContents.send('pos', { anchor, work, displays });
 }
 
 function initialBounds() {

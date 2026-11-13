@@ -844,7 +844,7 @@ canvas.addEventListener('pointerdown', e => {
   if (e.button !== 0 || !hoverClawd) return;
   if (Play.cur && Play.cur.def.hover) return; // en esos juegos basta con pasar por encima
   canvas.setPointerCapture(e.pointerId);
-  down = { x: e.screenX, y: e.screenY, moved: false };
+  down = { x: e.screenX, y: e.screenY, moved: false, samples: [] };
   window.clawd.dragStart(e.screenX, e.screenY);
 });
 canvas.addEventListener('pointermove', e => {
@@ -856,6 +856,9 @@ canvas.addEventListener('pointermove', e => {
   }
   if (down.moved) {
     window.clawd.dragMove(e.screenX, e.screenY);
+    // 🤾 últimas posiciones para saber con qué velocidad lo sueltas
+    down.samples.push([e.screenX, e.screenY, performance.now()]);
+    if (down.samples.length > 8) down.samples.shift();
     // 🫨 ¿lo estás sacudiendo? (4 cambios de sentido en 1,5 s)
     const dx = e.screenX - shake.last;
     shake.last = e.screenX;
@@ -877,13 +880,27 @@ function onShaken() {
   if (window.Sound) Sound.play('hello');
   Speech.say(Phrases.pick('shaken'), 3, { dur: 3500 });
 }
+// Velocidad al soltar (px/s) con las posiciones de los últimos ~100 ms; si te paraste antes de soltar, no hay lanzamiento
+function releaseVelocity(samples) {
+  if (!samples || samples.length < 2) return null;
+  const last = samples[samples.length - 1];
+  if (performance.now() - last[2] > 90) return null;
+  let first = samples[0];
+  for (const p of samples) if (last[2] - p[2] <= 100) { first = p; break; }
+  const dt = (last[2] - first[2]) / 1000;
+  if (dt < 0.015) return null;
+  return [(last[0] - first[0]) / dt, (last[1] - first[1]) / dt];
+}
 function endDrag() {
   if (!down) return;
   window.clawd.dragEnd();
   const moved = down.moved;
+  const v = releaseVelocity(down.samples);
   down = null;
   if (moved) {
     if (window.Extras) Extras.onDragged();
+    // soltado con fuerza: ¡sale volando!
+    if (v && Math.hypot(v[0], v[1]) > 750 && window.Extras && Extras.throwPal(v[0], v[1])) { updatePanel(); return; }
     if (Math.random() < 0.6) Speech.say(Phrases.pick('drop'), 2, { dur: 2000 });
   } else {
     ClawdSprite.trigger('poke');

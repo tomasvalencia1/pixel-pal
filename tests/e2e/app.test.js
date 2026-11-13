@@ -160,6 +160,21 @@ for (const edition of ['shared', 'personal']) {
         assert.ok(txt.indexOf('servidor') < txt.indexOf('informe'), 'lo urgente primero');
       });
 
+      await t.test('🤾 lanzarlo: vuela, rebota y aterriza en el suelo de la pantalla', async () => {
+        const before = (await (await P.http('/ping')).json()).bounds;
+        assert.equal(await P.page.evaluate(() => Extras.throwPal(1800, -900)), true);
+        assert.equal(await P.page.evaluate(() => Extras.flying()), true);
+        assert.ok(await until(() => P.page.evaluate(() => !Extras.flying()), 12000, 100), 'aterriza');
+        const after = (await (await P.http('/ping')).json()).bounds;
+        assert.notDeepEqual(after, before, 'se movió');
+        // en el suelo: los pies de Pal justo encima de la barra de tareas de su pantalla
+        const floorOk = await P.app.evaluate(({ screen }, b) => {
+          const d = screen.getDisplayMatching(b).workArea;
+          return { bottom: d.y + d.height, winBottom: b.y + b.height };
+        }, after);
+        assert.ok(floorOk.winBottom >= floorOk.bottom - 40, JSON.stringify(floorOk));
+      });
+
       await t.test('uso del plan: /statusline (curl) y /usage (hooks de Node)', async () => {
         const r = await P.http('/statusline', { method: 'POST', headers: P.auth(), body: JSON.stringify({ rate_limits: { five_hour: { used_percentage: 40 }, seven_day: { used_percentage: 10 } } }) });
         assert.match(await r.text(), /sesión 60% libre · semana 90% libre/);

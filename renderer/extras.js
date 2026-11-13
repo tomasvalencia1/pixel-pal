@@ -148,7 +148,57 @@ const Extras = (() => {
     Speech.say(Phrases.pick('rideFall'), 2, { dur: 1500 });
     Sound.play('fall');
   }
+  // 🤾 Lanzar a Pal (soltarlo rápido al arrastrar): vuela con esa velocidad, rebota en los bordes de la pantalla
+  // —o pasa al monitor de al lado si lo hay— y aterriza rebotando en la barra de tareas.
+  const displaysNow = () => (pos && pos.displays && pos.displays.length ? pos.displays : pos ? [pos.work] : []);
+  const displayAt = (x, y) => displaysNow().find(d => x >= d.x && x < d.x + d.width && y >= d.y && y < d.y + d.height) || null;
+  const lim = (v, m) => Math.max(-m, Math.min(m, v));
+  function throwPal(vx, vy) {
+    if (!pos) return false;
+    if (ride.mode !== 'off') stopRide();
+    ride.mode = 'flying';
+    ride.x = pos.anchor[0]; ride.y = pos.anchor[1];
+    ride.vx = lim(vx, 4000); ride.vy = lim(vy, 4000);
+    ride.bounces = 0; ride.walls = 0;
+    ride.speed0 = Math.hypot(ride.vx, ride.vy);
+    Sound.play('fall');
+    Speech.say(Phrases.pick('thrown'), 2, { dur: 1400 });
+    return true;
+  }
+  function landThrow() {
+    ride.mode = 'off';
+    ClawdSprite.trigger('poke');
+    Sound.play('land');
+    const dizzy = ride.speed0 > 2600 || ride.bounces + ride.walls >= 3;
+    if (dizzy) setTimeout(() => ClawdSprite.trigger('oops'), 250);
+    Speech.say(Phrases.pick(dizzy ? 'thrownDizzy' : 'thrownLand'), 2, { dur: 2200 });
+    window.clawd.moveEnd();
+  }
+  function flyFrame(dt) {
+    ride.vy += 2200 * dt;
+    ride.vx *= Math.pow(0.55, dt);                    // un poco de rozamiento con el aire
+    let nx = ride.x + ride.vx * dt, ny = ride.y + ride.vy * dt;
+    const cy = ny + 100;
+    const d = displayAt(nx + 80, cy) || displayAt(ride.x + 80, ride.y + 100) || pos.work;
+    // paredes: solo si al otro lado no hay otra pantalla
+    if (nx < d.x - 20 && !displayAt(d.x - 8, cy)) { nx = d.x - 20; ride.vx = Math.abs(ride.vx) * 0.55; ride.walls++; Sound.play('land'); ClawdSprite.trigger('poke'); }
+    if (nx > d.x + d.width - 140 && !displayAt(d.x + d.width + 8, cy)) { nx = d.x + d.width - 140; ride.vx = -Math.abs(ride.vx) * 0.55; ride.walls++; Sound.play('land'); ClawdSprite.trigger('poke'); }
+    if (ny < d.y - 40 && !displayAt(nx + 80, d.y - 8)) { ny = d.y - 40; ride.vy = Math.abs(ride.vy) * 0.4; }
+    const floor = d.y + d.height - FEET - 4;       // justo encima de la barra de tareas
+    let done = false;
+    if (ny >= floor) {
+      ny = floor;
+      if (ride.vy > 420 && ride.bounces < 4) { ride.vy = -ride.vy * 0.42; ride.vx *= 0.7; ride.bounces++; Sound.play('land'); ClawdSprite.trigger('poke'); }
+      else done = true;
+    }
+    ride.x = nx; ride.y = ny;
+    window.clawd.moveTo(nx, ny);
+    if (done) { landThrow(); return null; }
+    return { want: 'hop', play: { dir: ride.vx >= 0 ? 1 : -1, hop: ride.vy < 0 ? 0.3 : 0.7 } };
+  }
+
   function rideFrame(now, dt) {
+    if (ride.mode === 'flying' && pos) return flyFrame(dt);
     if (ride.mode === 'off' || !pos) return null;
     if (ride.mode === 'going') {
       if (!trackOk(ride.track)) { stopRide(); return null; }
@@ -545,7 +595,7 @@ const Extras = (() => {
     let out = { want: null, play: null };
     const r = rideFrame(now, dt);
     const urgent = want === 'waiting' || want === 'celebrate';
-    if (r && (!urgent || ride.mode === 'falling' || ride.mode === 'going')) out = r;
+    if (r && (!urgent || ride.mode === 'falling' || ride.mode === 'going' || ride.mode === 'flying')) out = r;
     else if (!gameActive && !sitting && (base === 'idle' || base === 'sleeping') && typing.streak >= 2 && Date.now() - typing.last < 2500) {
       out.want = 'editing';                               // teclea contigo
       if (Date.now() - typing.saidAt > 10 * 60000) { typing.saidAt = Date.now(); Speech.say(Phrases.pick('typeAlong'), 1, { cooldown: 3000 }); }
@@ -591,6 +641,8 @@ const Extras = (() => {
   return {
     frame, setPrefs, onDev, onSummary, preview,
     onDragged: () => { if (ride.mode !== 'off') stopRide(); },
+    throwPal,
+    flying: () => ride.mode === 'flying',
     onTaskDone: n => { if (away.on) away.tasks += n || 1; },
     onDone: () => {},
   };

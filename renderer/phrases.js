@@ -35,6 +35,9 @@ const PHRASES = {
   wake: ['¡Ah! Ya estoy despierto 👀', '¡Estoy aquí! ¿Qué pasó?', '*bostezo* ¡Vamos!'],
   idle: ['¿Algo más en lo que te ayude?', 'Estiro las pinzas un rato 🦀', 'Aquí sigo, por si acaso', 'Qué buen día para programar', '¿Un descanso? Te lo has ganado ☕'],
   drag: ['¡Wiii! 🎢', '¡Ey, que me mareo!', '¡Allá vamos!', '¡Uooo!'],
+  thrown: ['¡Wiiiii! 🚀', '¡Que vuelooo!', '¡Aaaaah! 🌀', '¡Soy un avión! ✈️'],
+  thrownLand: ['¡Diez de diez! 🤸', 'Aterrizaje perfecto 😎', '¡Otra, otra!', 'Y… ¡clavado!'],
+  thrownDizzy: ['😵‍💫 Todo da vueltas…', 'Me mareé un poquito 🌀', '¿Dónde estoy? 😵', 'Creo que veo dos ratones 🐭🐭'],
   drop: ['Aquí se está bien', 'Bonita vista 😌', 'Me quedo aquí', 'Perfecto 👌'],
   poke: ['¡Jaja, cosquillas! 😄', '¿Me llamabas?', '¡Ey! 👋', 'Sigo aquí 🦀'],
 
