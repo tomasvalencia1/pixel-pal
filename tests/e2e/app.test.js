@@ -22,8 +22,12 @@ async function launch(edition) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), `pal-e2e-${edition}-`));
   const port = 17000 + Math.floor(Math.random() * 2000);
   fs.writeFileSync(path.join(home, 'token'), TOKEN);
-  // sin sonidos
-  fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ sound: false }));
+  // ntfy falso: recoge lo que Pal enviaría al móvil
+  const ntfy = [];
+  const ntfyServer = require('http').createServer((req, res) => { let b = ''; req.on('data', c => b += c); req.on('end', () => { try { ntfy.push(JSON.parse(b)); } catch { /* nada */ } res.end('{}'); }); });
+  await new Promise(r => ntfyServer.listen(0, '127.0.0.1', r));
+  // sin sonidos; avisos al móvil siempre, al servidor falso
+  fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ sound: false, phone: { on: true, mode: 'always', server: `http://127.0.0.1:${ntfyServer.address().port}` } }));
   const settings = path.join(home, 'claude-settings.json');
   const legacy = '"C:/node.exe" "C:/x/hooks/clawd-hook.js"';
   const oldShared = curlCommand(7777, TOKEN, 'event');   // conexión antigua de la compartida (puerto viejo)
@@ -47,7 +51,7 @@ async function launch(edition) {
   await page.waitForFunction(() => window.Characters && window.Talk && window.Boost, null, { timeout: 15000 });
   const http = (route, opts = {}) => fetch(`http://127.0.0.1:${port}${route}`, opts);
   const auth = (extra = {}) => ({ 'x-clawd-token': TOKEN, 'content-type': 'application/json', ...extra });
-  return { app, page, home, port, settings, errors, http, auth };
+  return { app, page, home, port, settings, errors, http, auth, ntfy, ntfyServer };
 }
 
 for (const edition of ['shared', 'personal']) {
@@ -87,6 +91,16 @@ for (const edition of ['shared', 'personal']) {
         assert.equal(s.project, 'mi-app');
         await send({ hook_event_name: 'SessionEnd' });
         assert.ok(await until(() => P.page.evaluate(() => !state.sessions.some(x => x.id === 'e2e-1'))), 'y se va al cerrarla');
+      });
+
+      await t.test('📱 avisa al móvil cuando Claude termina', async () => {
+        const send = ev => P.http('/event', { method: 'POST', headers: P.auth(), body: JSON.stringify({ session_id: 'e2e-phone', cwd: 'C:\proyectos\movil', ...ev }) });
+        await send({ hook_event_name: 'UserPromptSubmit', prompt: 'texto privado' });
+        await send({ hook_event_name: 'Stop' });
+        const m = await until(() => P.ntfy.find(x => /movil: Claude terminó/.test(x.title)));
+        assert.ok(m, 'llega el aviso');
+        assert.match(m.topic, /^pixelpal-/);
+        assert.doesNotMatch(JSON.stringify(m), /texto privado/);
       });
 
       await t.test('uso del plan: /statusline (curl) y /usage (hooks de Node)', async () => {
@@ -162,12 +176,24 @@ for (const edition of ['shared', 'personal']) {
         assert.doesNotMatch(kids, /powershell/i);
       });
 
+      await t.test('ajustes: sección del móvil con QR y canal', async () => {
+        await P.page.evaluate(() => window.clawd.openUi('settings'));
+        const st = await until(() => P.app.windows().find(w => /settings.html/.test(w.url())));
+        assert.ok(st);
+        await st.waitForFunction(() => document.getElementById('phoneQr').src.startsWith('data:image/png'), null, { timeout: 8000 });
+        const r = await st.evaluate(() => ({ topic: document.getElementById('phoneTopic').textContent, on: document.getElementById('phoneOn').checked, hidden: document.getElementById('phoneBody').hidden }));
+        assert.match(r.topic, /^pixelpal-/);
+        assert.equal(r.on, true);
+        assert.equal(r.hidden, false);
+      });
+
       await t.test('sin errores en ninguna ventana', async () => {
         await wait(500);
         assert.deepEqual(P.errors, []);
       });
     } finally {
       await P.app.close().catch(() => {});
+      P.ntfyServer.close();
       try { fs.rmSync(P.home, { recursive: true, force: true }); } catch { /* algún archivo aún abierto */ }
     }
   });

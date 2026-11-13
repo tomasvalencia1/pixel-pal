@@ -70,3 +70,33 @@ $('close').addEventListener('click', () => window.ui.close());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') window.ui.close(); });
 
 refresh();
+
+// ---------- 📱 avisos al móvil ----------
+function phoneMsg(text, kind) { const m = $('phoneMsg'); m.textContent = text || ''; m.className = `msg ${kind || ''}`; }
+function phoneRender(p) {
+  $('phoneOn').checked = !!p.on;
+  $('phonePill').className = p.on ? 'pill ok' : 'pill no';
+  $('phonePill').textContent = p.on ? 'Activado' : 'Apagado';
+  $('phoneBody').hidden = !p.on;
+  $('phoneTopic').textContent = p.topic;
+  if (p.qr) $('phoneQr').src = p.qr;
+  for (const r of document.querySelectorAll('input[name=phoneMode]')) r.checked = r.value === p.mode;
+  $('phoneAway').value = p.awayMin;
+  $('phDone').checked = !!p.done; $('phWaiting').checked = !!p.waiting; $('phError').checked = !!p.error;
+}
+const phoneSet = async patch => { try { phoneRender(await window.ui.phoneSet(patch)); } catch (e) { phoneMsg(e.message, 'err'); } };
+$('phoneOn').addEventListener('change', e => phoneSet({ on: e.target.checked }));
+for (const r of document.querySelectorAll('input[name=phoneMode]')) r.addEventListener('change', () => phoneSet({ mode: r.value }));
+$('phoneAway').addEventListener('change', e => phoneSet({ awayMin: e.target.value }));
+$('phDone').addEventListener('change', e => phoneSet({ done: e.target.checked }));
+$('phWaiting').addEventListener('change', e => phoneSet({ waiting: e.target.checked }));
+$('phError').addEventListener('change', e => phoneSet({ error: e.target.checked }));
+$('phoneCopy').addEventListener('click', () => { navigator.clipboard.writeText($('phoneTopic').textContent).then(() => phoneMsg('Canal copiado 👍', 'ok')); });
+$('phoneNew').addEventListener('click', async () => { await phoneSet({ newTopic: true }); phoneMsg('Canal nuevo creado: suscríbete otra vez desde el móvil.', 'ok'); });
+$('phoneTest').addEventListener('click', async () => {
+  const b = $('phoneTest'); b.disabled = true; phoneMsg('Enviando…');
+  const r = await window.ui.phoneTest();
+  b.disabled = false;
+  phoneMsg(r.ok ? '¡Enviado! Si no te llega, revisa que estés suscrito a este canal en la app ntfy.' : `No se pudo enviar (${r.error || 'error ' + r.status}). ¿Hay conexión a internet?`, r.ok ? 'ok' : 'err');
+});
+window.ui.phone().then(p => { phoneRender(p); if (location.hash === '#phone') $('phone').scrollIntoView(); });

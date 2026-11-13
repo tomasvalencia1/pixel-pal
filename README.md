@@ -222,6 +222,19 @@ npm run uninstall-hooks
 
 Solo quita los hooks de Pal y deja el resto de tu configuración intacta.
 
+## Avisos al móvil
+
+Pal puede avisarte en el teléfono cuando Claude **termina**, **necesita tu permiso** o **se detiene** (error o límite de uso),
+usando la app gratis [ntfy](https://ntfy.sh) (Android e iPhone, sin cuenta):
+
+1. Clic derecho sobre Pal → **📱 Avisos al móvil…** y activa el interruptor.
+2. Instala ntfy en el móvil y escanea el código QR (o suscríbete al canal que aparece).
+3. Pulsa **Enviar prueba**.
+
+Por defecto solo avisa si **no estás delante del PC** (3 min sin tocarlo o pantalla bloqueada). Si Claude termina mientras
+estás y luego te vas sin responder, avisa al cumplirse esos minutos. Solo se envía el nombre del proyecto, el estado y el
+número de tareas; nunca lo que escribes ni tu código. El canal es un nombre secreto aleatorio.
+
 ## Ediciones
 
 El mismo código sirve para dos ediciones, que se eligen con la variable `PAL_EDITION` (ver `edition.js`):

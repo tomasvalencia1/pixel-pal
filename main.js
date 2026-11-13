@@ -2,7 +2,7 @@
 // - Ventana transparente, sin bordes y SIEMPRE en primer plano
 // - Servidor local (127.0.0.1, puerto 7777 en la edición personal y 7778 en la compartida) que recibe los eventos de los hooks de Claude Code
 // - Estado de todas las sesiones y sus tareas
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, Notification, clipboard, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, Notification, clipboard, globalShortcut, powerMonitor } = require('electron');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -59,6 +59,16 @@ function saveConfig(patch) { config = { ...config, ...patch }; writeJson(CONFIG_
 // ⚡ Pal es una ventanita transparente de pixel art: dibujada sin aceleración por hardware gasta menos CPU y RAM
 // (medido: tranquilo 0,6 % frente a 0,8 %; trabajando 2,5 % frente a 3,1 %; ~55 MB menos). "gpu": true en config.json la reactiva.
 if (!(config.gpu === true || process.env.PAL_GPU === '1')) app.disableHardwareAcceleration();
+
+// 📱 Avisos al móvil (ntfy): cuando Claude termina, pide permiso o se detiene y tú no estás delante del PC
+const { createPhone } = require('./phone');
+const phone = createPhone({
+  getConfig: () => config,
+  saveConfig,
+  idleSeconds: () => { try { return powerMonitor.getSystemIdleTime(); } catch { return 0; } },
+  isLocked: () => { try { return powerMonitor.getSystemIdleState(1) === 'locked'; } catch { return false; } },
+  getSession: id => sessions.get(id),
+});
 // Puerto del servidor local (CLAWD_PORT para pruebas)
 const PORT = Number(process.env.CLAWD_PORT) || Number(config.port) || ED.port;
 
@@ -171,7 +181,7 @@ function handleEvent(ev) {
   logEvent(ev);
   const now = Date.now();
   const name = ev.hook_event_name;
-  if (name === 'SessionEnd') { sessions.delete(ev.session_id); changed(); return; }
+  if (name === 'SessionEnd') { phone.cancel(ev.session_id); sessions.delete(ev.session_id); changed(); return; }
 
   let s = sessions.get(ev.session_id);
   if (!s) {
@@ -192,6 +202,7 @@ function handleEvent(ev) {
       s.status = 'thinking';
       s.message = '';
       s.turnAt = now;
+      phone.cancel(s.id);   // ya estás respondiendo: nada que avisar
       break;
     case 'PreToolUse':
       s.status = 'working';
@@ -219,6 +230,7 @@ function handleEvent(ev) {
       } else {
         s.status = 'done';
       }
+      phone.event('error', s, { limit: ev.error === 'rate_limit' });
       break;
     case 'Notification':
       // El aviso de "esperando tu respuesta" tras terminar no cuenta como urgencia
@@ -229,14 +241,17 @@ function handleEvent(ev) {
     case 'Stop':
       s.status = 'done';
       s.doneAt = now;
+      phone.event('done', s, { ms: s.turnAt ? now - s.turnAt : 0 });
       if (s.turnAt) { bump('workMs', now - s.turnAt); s.turnAt = 0; }
       break;
     default:
       break;
   }
 
-  if (s.status === 'waiting' && prev !== 'waiting' && config.notifications !== false) {
-    notify(`Pal · ${s.project}`, s.message);
+  if (s.status === 'waiting' && prev !== 'waiting') {
+    s.waitingSince = now;
+    if (config.notifications !== false) notify(`Pal · ${s.project}`, s.message);
+    phone.event('waiting', s);
   }
   changed();
 }
@@ -876,6 +891,7 @@ function setupIpc() {
     }));
     Menu.buildFromTemplate([
       { label: '⚙️ Ajustes…', click: () => openUi('settings') },
+      { label: '📱 Avisos al móvil…', click: () => openUi('settings', 'phone') },
       { label: '📖 Ver el tutorial', click: () => openUi('tutorial') },
       { type: 'separator' },
       { label: '💬 Hablar con Pal   (Ctrl+Alt+Espacio)', click: openTalk },
@@ -1009,10 +1025,11 @@ function setAutostart(on) {
 
 // ---------- ventanas de ajustes y tutorial ----------
 let uiWin = null;
-function openUi(page) {
+function openUi(page, section) {
   const file = page === 'tutorial' ? 'tutorial.html' : 'settings.html';
+  const hash = section ? { hash: section } : undefined;
   if (uiWin && !uiWin.isDestroyed()) {
-    uiWin.loadFile(path.join(__dirname, 'renderer', file));
+    uiWin.loadFile(path.join(__dirname, 'renderer', file), hash);
     uiWin.show(); uiWin.focus();
     return;
   }
@@ -1022,7 +1039,7 @@ function openUi(page) {
     backgroundColor: '#1c1a18', title: page === 'tutorial' ? 'Bienvenido a Pal' : 'Ajustes de Pal', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload-ui.js'), contextIsolation: true, nodeIntegration: false, additionalArguments: EDITION_ARG },
   });
-  uiWin.loadFile(path.join(__dirname, 'renderer', file));
+  uiWin.loadFile(path.join(__dirname, 'renderer', file), hash);
   uiWin.once('ready-to-show', () => { uiWin.show(); uiWin.focus(); });
   uiWin.on('closed', () => { uiWin = null; });
 }
@@ -1051,6 +1068,16 @@ function setupUiIpc() {
     catch (e) { return { ok: false, error: e.message }; }
   });
   ipcMain.handle('ui:set-autostart', (_e, on) => { setAutostart(!!on); return uiStatus(); });
+  // 📱 avisos al móvil
+  const phoneView = async () => {
+    const st = phone.status();
+    let qr = '';
+    try { qr = await require('qrcode').toDataURL(st.url, { margin: 1, width: 220, color: { dark: '#1c1a18', light: '#ffffff' } }); } catch { /* sin QR */ }
+    return { ...st, qr };
+  };
+  ipcMain.handle('ui:phone', () => phoneView());
+  ipcMain.handle('ui:phone-set', (_e, patch) => { phone.set(patch && typeof patch === 'object' ? patch : {}); return phoneView(); });
+  ipcMain.handle('ui:phone-test', () => phone.test());
   ipcMain.handle('ui:finish-tutorial', () => {
     saveConfig({ onboarded: true });
     if (uiWin && !uiWin.isDestroyed()) uiWin.close();

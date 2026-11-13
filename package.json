@@ -29,6 +29,7 @@
     "files": [
       "main.js",
       "edition.js",
+      "phone.js",
       "hooks.js",
       "preload.js",
       "preload-ui.js",
@@ -69,6 +70,7 @@
     }
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0"
+    "@anthropic-ai/sdk": "^1.8.0",
+    "qrcode": "^1.5.4"
   }
 }

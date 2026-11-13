@@ -12,4 +12,7 @@ contextBridge.exposeInMainWorld('ui', {
   preview: action => ipcRenderer.invoke('ui:preview', String(action || '')),
   open: page => ipcRenderer.invoke('ui:open', page),
   close: () => ipcRenderer.send('ui:close'),
+  phone: () => ipcRenderer.invoke('ui:phone'),
+  phoneSet: patch => ipcRenderer.invoke('ui:phone-set', patch && typeof patch === 'object' ? patch : {}),
+  phoneTest: () => ipcRenderer.invoke('ui:phone-test'),
 });
