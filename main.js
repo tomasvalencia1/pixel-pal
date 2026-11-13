@@ -193,6 +193,48 @@ function needsWindow(ev) {
   return !s || (!s.win && Date.now() - (s.winCheckedAt || 0) > 120000);
 }
 
+// ---------- 🤫 No molestar ----------
+// Pal se calla (sin burbujas salvo lo urgente, sin sonidos, sin juegos) si: lo activas a mano, estás en tus horas de
+// silencio, o Windows está en No molestar / presentación / juego a pantalla completa (si lo respetas).
+const hm = t => { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+function quietHoursNow(d = new Date()) {
+  const q = config.quietHours;
+  if (!q || !q.on) return null;
+  const now = d.getHours() * 60 + d.getMinutes(), a = hm(q.from), b = hm(q.to);
+  const inside = a <= b ? now >= a && now < b : now >= a || now < b;
+  if (!inside) return null;
+  const end = new Date(d); end.setHours(Math.floor(b / 60), b % 60, 0, 0);
+  if (end <= d) end.setDate(end.getDate() + 1);
+  return end.getTime();
+}
+function computeQuiet(now = Date.now()) {
+  const u = Number(config.dndUntil) || 0;
+  if (u === -1) return { on: true, reason: 'manual', until: 0 };
+  if (u > now) return { on: true, reason: 'manual', until: u };
+  const h = quietHoursNow(new Date(now));
+  if (h) return { on: true, reason: 'hours', until: h };
+  if (config.respectFocus !== false && [3, 4, 6].includes(winNotif)) return { on: true, reason: 'windows', until: 0 };
+  return { on: false, reason: '', until: 0 };
+}
+let quiet = { on: false, reason: '', until: 0 };
+function updateQuiet() {
+  const q = computeQuiet();
+  if (q.on === quiet.on && q.reason === quiet.reason && q.until === quiet.until) return;
+  quiet = q;
+  sendCommand({ quiet });
+  if (uiWin && !uiWin.isDestroyed()) uiWin.webContents.send('ui-refresh');
+}
+setInterval(updateQuiet, 20000);
+// «Hasta mañana»: a las 8:00 (o al final de tus horas de silencio si terminan más tarde)
+function untilTomorrow() {
+  const d = new Date(); d.setDate(d.getDate() + (d.getHours() >= 8 ? 1 : 0)); d.setHours(8, 0, 0, 0);
+  return d.getTime();
+}
+function setDnd(v) {
+  saveConfig({ dndUntil: v === 'hour' ? Date.now() + 3600000 : v === 'tomorrow' ? untilTomorrow() : v === 'forever' ? -1 : 0 });
+  updateQuiet();
+}
+
 // ---------- ✋ permisos desde Pal ----------
 // Claude Code pregunta (hook PermissionRequest) y espera: Pal enseña Permitir / Denegar / Ver.
 // Si ya estás mirando la ventana de esa sesión, Pal no se mete; si no contestas a tiempo, sale el diálogo de siempre.
@@ -308,7 +350,7 @@ function handleEvent(ev) {
 
   if (s.status === 'waiting' && prev !== 'waiting') {
     s.waitingSince = now;
-    if (config.notifications !== false) notify(`Pal · ${s.project}`, s.message);
+    if (config.notifications !== false && !quiet.on) notify(`Pal · ${s.project}`, s.message);
     phone.event('waiting', s);
   }
   changed();
@@ -401,6 +443,10 @@ function toDip(r) { try { return screen.screenToDipRect(null, r); } catch { retu
 
 function onSys(m) {
   switch (m.t) {
+    case 'notif':
+      winNotif = Number(m.s) || 0;
+      updateQuiet();
+      break;
     case 'who':
     case 'focus': {
       const cb = watchWait.get(m.req);
@@ -442,7 +488,8 @@ function onSys(m) {
 // ⚡ Se usa la versión compilada (system-watch.exe, ~10 MB) y, si falla o no está, la de PowerShell (~100 MB).
 let watchExeFailed = false;
 let watchUsesExe = false;
-let fgWindow = 0;           // ventana activa ahora mismo (la manda el vigilante)   // solo la versión compilada entiende órdenes (who / focus)
+let fgWindow = 0;
+let winNotif = 0;           // estado de avisos de Windows (3 juego, 4 presentación, 6 No molestar)           // ventana activa ahora mismo (la manda el vigilante)   // solo la versión compilada entiende órdenes (who / focus)
 // 🪟 Preguntas al vigilante: "who" (qué ventana hay detrás de una conexión) y "focus" (traer una ventana al frente)
 let watchReq = 0;
 const watchWait = new Map();
@@ -787,6 +834,8 @@ function createWindow() {
   });
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  // 🙈 que no salga en capturas ni al compartir pantalla (si lo pides)
+  if (config.hideCapture) win.setContentProtection(true);
   win.setIgnoreMouseEvents(true, { forward: true });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.once('ready-to-show', () => { win.showInactive(); keepOnTop(); });
@@ -822,6 +871,20 @@ function createWindow() {
 }
 
 // 🔄 Reiniciar Pal (por si algo se queda raro): se cierra limpio y se vuelve a abrir con lo mismo
+// Submenú «No molestar» (clic derecho y bandeja)
+function dndMenu() {
+  const q = computeQuiet();
+  const label = q.on ? `🤫 No molestar (activo${q.until ? ' hasta las ' + new Date(q.until).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : ''})` : '🤫 No molestar';
+  return { label, submenu: [
+    { label: 'Durante 1 hora', click: () => setDnd('hour') },
+    { label: 'Hasta mañana', click: () => setDnd('tomorrow') },
+    { label: 'Hasta que lo quite', click: () => setDnd('forever') },
+    { type: 'separator' },
+    { label: 'Desactivar', enabled: Number(config.dndUntil) !== 0, click: () => setDnd('off') },
+    { label: 'Ajustes de tranquilidad…', click: () => openUi('settings', 'calm') },
+  ] };
+}
+
 function restartPal() {
   app.isQuitting = true;
   try { if (mediaChild) mediaChild.kill(); } catch { /* nada */ }
@@ -1009,6 +1072,7 @@ function setupIpc() {
   ipcMain.on('open-sessions', (_e, file) => openSessionsWindow(typeof file === 'string' ? file : null));
   ipcMain.on('sess-action', (_e, a) => sessAction(a));
   ipcMain.on('restart', () => restartPal());
+  ipcMain.on('dnd', (_e, v) => setDnd(String(v || 'off')));
   ipcMain.handle('perm-answer', async (_e, a) => {
     if (!a || typeof a !== 'object') return false;
     const id = String(a.id || '');
@@ -1040,6 +1104,7 @@ function setupIpc() {
       click: () => { saveConfig({ [key]: value }); send({ prefs: prefsPayload() }); },
     }));
     Menu.buildFromTemplate([
+      dndMenu(),
       { label: '⚙️ Ajustes…', click: () => openUi('settings') },
       { label: '📱 Avisos al móvil…', click: () => openUi('settings', 'phone') },
       { label: '📖 Ver el tutorial', click: () => openUi('tutorial') },
@@ -1084,6 +1149,7 @@ function prefsPayload() {
     sit: !!config.sit, dance: config.dance !== false, sound: config.sound !== false, tts: !!config.tts, breaks: config.breaks !== false, outfit: getOutfit(),
     pomoFocus: config.pomoFocus || 25, pomoBreak: config.pomoBreak || 5, careEvery: config.careEvery || 45,
     ride: config.ride || 'ask', fsHide: config.fsHide || 'ask', appModes: config.appModes || {},
+    chatty: Number.isInteger(config.chatty) ? config.chatty : 2, motion: config.motion || 'auto', quiet,
   };
 }
 
@@ -1204,6 +1270,7 @@ function uiStatus() {
     edition: ED.name,
     serverError,
     hooks: hooks.status(PORT, TOKEN),
+    calm: { dndUntil: Number(config.dndUntil) || 0, quietHours: config.quietHours || { on: false, from: '22:00', to: '08:00' }, respectFocus: config.respectFocus !== false, chatty: Number.isInteger(config.chatty) ? config.chatty : 2, hideCapture: !!config.hideCapture, motion: config.motion || 'auto', quiet },
     perm: { approve: config.permApprove !== false, wait: Number(config.permWait ?? 20), installed: hooks.permissionInstalled(PORT, TOKEN) },
     autostart: getAutostart(),
     onboarded: !!config.onboarded,
@@ -1221,6 +1288,25 @@ function setupUiIpc() {
     catch (e) { return { ok: false, error: e.message }; }
   });
   ipcMain.handle('ui:set-autostart', (_e, on) => { setAutostart(!!on); return uiStatus(); });
+  // 🤫 tranquilidad
+  ipcMain.handle('ui:calm-set', (_e, p) => {
+    p = p && typeof p === 'object' ? p : {};
+    const patch = {};
+    if (['hour', 'tomorrow', 'forever', 'off'].includes(p.dnd)) setDnd(p.dnd);
+    if (p.quietHours && typeof p.quietHours === 'object') {
+      const t = v => (/^\d{1,2}:\d{2}$/.test(String(v)) ? String(v) : null);
+      const cur = config.quietHours || { on: false, from: '22:00', to: '08:00' };
+      patch.quietHours = { on: 'on' in p.quietHours ? !!p.quietHours.on : cur.on, from: t(p.quietHours.from) || cur.from, to: t(p.quietHours.to) || cur.to };
+    }
+    if ('respectFocus' in p) patch.respectFocus = !!p.respectFocus;
+    if ('chatty' in p) patch.chatty = Math.max(0, Math.min(3, Math.round(Number(p.chatty)) || 0));
+    if ('hideCapture' in p) { patch.hideCapture = !!p.hideCapture; if (win && !win.isDestroyed()) win.setContentProtection(patch.hideCapture); }
+    if (['auto', 'less', 'full'].includes(p.motion)) patch.motion = p.motion;
+    saveConfig(patch);
+    updateQuiet();
+    if (win && !win.isDestroyed()) win.webContents.send('prefs', prefsPayload());
+    return uiStatus();
+  });
   // ✋ aprobar permisos desde Pal
   ipcMain.handle('ui:perm-set', (_e, p) => {
     p = p && typeof p === 'object' ? p : {};
@@ -1288,6 +1374,7 @@ function setupTray() {
   tray.on('click', toggleVisible);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Mostrar / ocultar a Pal   (Ctrl+Alt+C)', click: toggleVisible },
+    dndMenu(),
     { label: 'Ajustes…', click: () => openUi('settings') },
     { label: 'Ver el tutorial', click: () => openUi('tutorial') },
     { label: 'Hablar con Pal   (Ctrl+Alt+Espacio)', click: openTalk },

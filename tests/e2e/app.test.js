@@ -301,6 +301,38 @@ for (const edition of ['shared', 'personal']) {
         assert.equal(a.qr, 'data:image/png;');
       });
 
+      await t.test('🤫 no molestar, horas de silencio, cuánto habla y menos movimiento', async () => {
+        // 1) No molestar 1 hora: solo lo urgente
+        await P.page.evaluate(() => window.clawd.dnd('hour'));
+        assert.ok(await until(() => P.page.evaluate(() => Calm.quiet.on && Calm.quiet.reason === 'manual')), 'se activa');
+        const r = await P.page.evaluate(() => ({ normal: Speech.say('comentario', 1, { cooldown: 0 }), urgent: Speech.say('urgente', 3) }));
+        assert.deepEqual(r, { normal: false, urgent: true });
+        await P.page.evaluate(() => window.clawd.dnd('off'));
+        assert.ok(await until(() => P.page.evaluate(() => !Calm.quiet.on)), 'se apaga');
+        // 2) horas de silencio que incluyen ahora (desde la ventana de ajustes)
+        await P.page.evaluate(() => window.clawd.openUi('settings'));
+        const st = await until(() => P.app.windows().find(w => /settings.html/.test(w.url())));
+        await st.waitForFunction(() => window.ui && window.ui.calmSet, null, { timeout: 8000 });
+        const q = await st.evaluate(async () => {
+          const d = new Date(), pad = n => String(n).padStart(2, '0');
+          const from = `${pad((d.getHours() + 23) % 24)}:00`, to = `${pad((d.getHours() + 1) % 24)}:59`;
+          const on = (await window.ui.calmSet({ quietHours: { on: true, from, to } })).calm.quiet;
+          const off = (await window.ui.calmSet({ quietHours: { on: false } })).calm.quiet;
+          return { on, off };
+        });
+        assert.equal(q.on.on, true); assert.equal(q.on.reason, 'hours'); assert.ok(q.on.until > Date.now());
+        assert.equal(q.off.on, false);
+        // 3) cuánto habla y movimiento
+        const c = await P.page.evaluate(() => {
+          applyPrefs({ chatty: 0, motion: 'less' }, false);
+          const out = { allowsImportant: Calm.allows(2), allowsUrgent: Calm.allows(3), reduce: Calm.reduce() };
+          applyPrefs({ chatty: 2, motion: 'full' }, false);
+          out.back = Calm.allows(1) && !Calm.reduce();
+          return out;
+        });
+        assert.deepEqual(c, { allowsImportant: false, allowsUrgent: true, reduce: true, back: true });
+      });
+
       await t.test('sin errores en ninguna ventana', async () => {
         await wait(500);
         assert.deepEqual(P.errors, []);

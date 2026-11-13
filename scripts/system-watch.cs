@@ -39,6 +39,8 @@ static class W {
   [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
   [DllImport("kernel32.dll")] public static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS s);
+  // ¿Windows está en No molestar, en una presentación o con un juego a pantalla completa?
+  [DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int state);
 
   // ¿Se pulsó alguna tecla desde la última vez? Solo devuelve sí/no: NO guarda qué tecla.
   // Ignora botones del ratón, Shift/Ctrl/Alt/Win solos e Imprimir pantalla.
@@ -282,7 +284,7 @@ static class Program {
     if (string.IsNullOrEmpty(trackFile)) trackFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".clawd-flotante", "track.txt");
     string lastFg = "", lastMedia = "", lastTrack = "";
     uint lastClip = W.GetClipboardSequenceNumber();
-    int lastClaude = -1, typeHits = 0, prtAt = -1000;
+    int lastClaude = -1, typeHits = 0, prtAt = -1000, lastNotif = -1;
     long tick = 0;
     // Si Pal se cierra, la salida se rompe y este proceso termina solo
     while (true) {
@@ -347,6 +349,14 @@ static class Program {
           }
         } else lastTrack = "";
       } catch { }
+
+      // ---- avisos de Windows (cada 2 s): 3 = juego, 4 = presentación, 6 = No molestar / horas tranquilas ----
+      if (tick % 10 == 5) {
+        try {
+          int ns;
+          if (W.SHQueryUserNotificationState(out ns) == 0 && ns != lastNotif) { lastNotif = ns; Emit(new J().S("t", "notif").N("s", ns).ToString()); }
+        } catch { }
+      }
 
       // ---- batería (cada 30 s) ----
       if (tick % 150 == 1) {

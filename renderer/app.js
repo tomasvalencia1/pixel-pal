@@ -107,10 +107,11 @@ const Speech = (() => {
   // opts: dur, cooldown, usage (bloque de uso), lines (lista), buttons [{label, value}] + onAnswer(value)
   function say(text, priority = 1, opts = {}) {
     if (!text) return false;
+    if (window.Calm && !Calm.allows(priority)) return false;   // 🤫
     const now = Date.now();
     if (cur && now < cur.until && cur.priority > priority) return false;
     if (cur && cur.ask && now < cur.until && !opts.buttons) return false;   // no tapar una pregunta abierta
-    if (priority <= 1 && now - lastAt < (opts.cooldown ?? 7000)) return false;
+    if (priority <= 1 && now - lastAt < (opts.cooldown ?? 7000) * (window.Calm && Calm.chatty === 3 ? 0.5 : 1)) return false;
     if (cur && cur.onAnswer && !cur.answered) { cur.answered = true; cur.onAnswer(null); }
     lastAt = now;
     const ask = !!(opts.buttons && opts.buttons.length);
@@ -177,6 +178,30 @@ const Speech = (() => {
 })();
 const say = (key, priority = 2, opts = {}, vars = {}) => Speech.say(Phrases.pick(key, vars), priority, opts);
 
+// 🤫 Tranquilidad: silencio (manual, horas o Windows), cuánto habla (0 callado … 3 mucho) y menos movimiento
+const Calm = {
+  quiet: { on: false, reason: '', until: 0 },
+  chatty: 2,
+  motion: 'auto',
+  reduce() { return this.motion === 'less' || (this.motion === 'auto' && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); },
+  // ¿puede hablar con esta prioridad? (0 comentario, 1 reacción, 2 importante, 3 urgente)
+  allows(priority) {
+    if (this.quiet.on) return priority >= 3;
+    if (this.chatty === 0) return priority >= 3;
+    if (this.chatty === 1) return priority >= 2;
+    return true;
+  },
+  set(p) {
+    if (!p) return;
+    if (p.quiet) this.quiet = p.quiet;
+    if (Number.isInteger(p.chatty)) this.chatty = p.chatty;
+    if (p.motion) this.motion = p.motion;
+    document.body.classList.toggle('quiet', !!this.quiet.on);
+    document.body.classList.toggle('reduce-motion', this.reduce());
+  },
+};
+window.Calm = Calm;
+
 // 🗣️ Voz real opcional: lee en voz alta las burbujas importantes con la voz de Windows (en español si la hay),
 // con el tono de cada personaje. Apagada por defecto (menú del clic derecho → Voz de Pal).
 const Voice = (() => {
@@ -190,6 +215,7 @@ const Voice = (() => {
   };
   function say(text) {
     if (!on || !synth || !window.Sound || !Sound.isOn()) return;
+    if (window.Calm && Calm.quiet.on) return;   // voz: en silencio, nada
     // sin emojis ni símbolos (los lee raro)
     const clean = String(text).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, '').replace(/[~*_#<>]/g, ' ').trim();
     if (!clean) return;
@@ -649,7 +675,7 @@ let shownBase = 'sleeping';
 function playTick(now, dt, base) {
   shownBase = base;
   const free = base === 'idle' || base === 'sleeping';
-  const blocked = sitting || down || demoStart || (preview && now < previewUntil);
+  const blocked = sitting || down || demoStart || (preview && now < previewUntil) || (!Play.cur && (Calm.quiet.on || Calm.reduce()));
   if (Play.cur) {
     const panelBlocks = document.body.classList.contains('panel-open') && !Play.cur.def.hover && !Play.cur.forced;
     if ((!free && !Play.cur.forced) || blocked || panelBlocks) { endGame(); return null; }
@@ -715,6 +741,8 @@ function setCaption(action) {
     const m = media();
     text = `🎵 ${m.song || 'Música'}${m.by ? ' — ' + m.by : ''}`;
   }
+  // 🤫 en silencio, se nota en la leyenda
+  if (!text && Calm.quiet.on && !Speech.speaking()) text = Calm.quiet.reason === 'windows' ? '🤫 Windows en No molestar' : Calm.quiet.reason === 'hours' ? '🌙 Horas de silencio' : '🤫 No molestar';
   // 🍅 tiempo del pomodoro (también por encima de la canción que suena)
   if (window.Boost && !Speech.speaking() && (!text || text.startsWith('🎵')) && Boost.caption()) { text = Boost.caption(); cls = ''; }
   // 🫨 sacudido: cuánto le queda despierto (solo si no hay nada más que contar)
@@ -811,6 +839,7 @@ sitBtn.addEventListener('click', e => {
 window.clawd.onPrefs(p => applyPrefs(p, false));
 function applyPrefs(p, speak) {
   if (!p) return;
+  Calm.set(p);
   if ('sit' in p) setSitting(!!p.sit, speak && p.sit !== sitting);
   if ('dance' in p) setDance(p.dance !== false, false);
   if (window.Extras) Extras.setPrefs(p);
@@ -974,7 +1003,7 @@ function endDrag() {
   if (moved) {
     if (window.Extras) Extras.onDragged();
     // soltado con fuerza: ¡sale volando!
-    if (v && Math.hypot(v[0], v[1]) > 750 && window.Extras && Extras.throwPal(v[0], v[1])) { updatePanel(); return; }
+    if (v && !Calm.reduce() && Math.hypot(v[0], v[1]) > 750 && window.Extras && Extras.throwPal(v[0], v[1])) { updatePanel(); return; }
     if (Math.random() < 0.6) Speech.say(Phrases.pick('drop'), 2, { dur: 2000 });
   } else {
     ClawdSprite.trigger('poke');
@@ -1001,10 +1030,12 @@ document.getElementById('hidebtn').addEventListener('click', e => {
 // ---------- ⚙️ ajustes y 📖 tutorial ----------
 document.getElementById('settingsbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.openUi('settings'); });
 document.getElementById('tutorialbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.openUi('tutorial'); });
+document.getElementById('dndbtn').addEventListener('click', e => { e.stopPropagation(); window.clawd.dnd(Calm.quiet.on && Calm.quiet.reason === 'manual' ? 'off' : 'hour'); });
 document.getElementById('restartbtn').addEventListener('click', e => { e.stopPropagation(); Speech.say('¡Vuelvo en un segundo! 🔄', 3, { dur: 1500 }); setTimeout(() => window.clawd.restart(), 600); });
 
 // ✋ Claude pide permiso: Permitir / Denegar / Ver (si no contestas, sale el diálogo de siempre)
 window.clawd.onCommand(c => {
+  if (c && c.quiet) { Calm.set({ quiet: c.quiet }); if (c.quiet.on && c.quiet.reason === 'manual') Speech.say('🤫 Vale, me quedo calladito', 3, { dur: 2000 }); }
   if (c && c.perm) {
     const p = c.perm;
     const what = p.detail ? `${p.tool}: ${p.detail}` : p.tool || 'una herramienta';

@@ -14,6 +14,9 @@
     .btn.tiny { padding: 2px 8px; font-size: 11px; }
     .num { width: 46px; }
     .checks, .provider { gap: 14px; flex-wrap: wrap; }
+    select, input[type=time] { font: inherit; font-size: 12.5px; color: var(--text, #f3eee9); background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 4px 8px; color-scheme: dark; }
+    select option { background: #2a2622; }
+    .card .row + .row { margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -105,6 +108,40 @@
         <div class="msg" id="phoneMsg"></div>
         <div class="muted small">Solo se envía el nombre del proyecto, el estado y cuántas tareas van; nunca lo que escribes ni tu código. El canal es un nombre secreto: no lo compartas.</div>
       </div>
+    </div>
+
+    <h3 id="calm">🤫 Tranquilidad</h3>
+    <div class="card">
+      <div class="row">
+        <div class="grow"><div><b>No molestar</b> <span id="quietPill" class="pill no">…</span></div>
+          <div class="muted small">Pal se calla (solo te avisa de lo urgente, como un permiso), sin sonidos ni juegos. Los avisos al móvil siguen igual.</div></div>
+        <select id="dnd">
+          <option value="off">Apagado</option><option value="hour">1 hora</option><option value="tomorrow">Hasta mañana</option><option value="forever">Hasta que lo quite</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="grow"><b>Horas de silencio</b><div class="muted small">Cada día, de <input type="time" id="qhFrom"> a <input type="time" id="qhTo"></div></div>
+        <label class="switch"><input type="checkbox" id="qhOn"><span></span></label>
+      </div>
+      <div class="row">
+        <div class="grow"><b>Respetar el «No molestar» de Windows</b><div class="muted small">También en presentaciones y juegos a pantalla completa.</div></div>
+        <label class="switch"><input type="checkbox" id="respectFocus"><span></span></label>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="grow"><b>Cuánto habla Pal</b><div class="muted small">Callado = solo lo urgente.</div></div>
+        <select id="chatty"><option value="0">Callado</option><option value="1">Poco</option><option value="2">Normal</option><option value="3">Mucho</option></select>
+      </div>
+      <div class="row">
+        <div class="grow"><b>Movimiento</b><div class="muted small">«Menos»: sin juegos, saltos por la pantalla ni lanzamientos.</div></div>
+        <select id="motion"><option value="auto">Según Windows</option><option value="less">Menos</option><option value="full">Todo</option></select>
+      </div>
+      <div class="row">
+        <div class="grow"><b>No salir en capturas ni al compartir pantalla</b><div class="muted small">Pal sigue a la vista para ti, pero no aparece en grabaciones, videollamadas ni capturas.</div></div>
+        <label class="switch"><input type="checkbox" id="hideCapture"><span></span></label>
+      </div>
+      <div class="msg" id="calmMsg"></div>
     </div>
 
     <h3>General</h3>

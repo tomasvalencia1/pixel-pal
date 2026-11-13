@@ -367,3 +367,6 @@ body.talk-open #bubble:not(.ask), body.talk-open #caption { visibility: hidden; 
 .ring span { font-size: 9px; color: var(--muted); margin-top: -1px; }
 /* 🦀 mini-Pal de cada sesión */
 .card .mini { width: 28px; height: 24px; image-rendering: pixelated; flex: none; margin: -3px 0 -3px -2px; }
+
+/* 🤫 en silencio: el botón se nota activo */
+body.quiet #dndbtn { background: rgba(167, 155, 245, 0.22); border-color: rgba(167, 155, 245, 0.6); }

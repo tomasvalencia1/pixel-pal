@@ -32,6 +32,7 @@ function render(s) {
     btn.textContent = 'Conectar'; btn.className = 'btn primary';
   }
   permRender(s);
+  calmRender(s);
   $('autostart').checked = !!s.autostart;
   $('autostartNote').hidden = !!s.packaged;
   $('version').textContent = s.version || '—';
@@ -60,6 +61,33 @@ $('hooksBtn').addEventListener('click', async () => {
     btn.disabled = false;
   }
 });
+
+// ---------- 🤫 tranquilidad ----------
+function calmRender(s) {
+  const c = s.calm || {};
+  const q = c.quiet || {};
+  const hhmm = t => new Date(t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  $('quietPill').className = q.on ? 'pill ok' : 'pill no';
+  $('quietPill').textContent = !q.on ? 'Apagado' : q.reason === 'windows' ? 'Activo (Windows)' : q.reason === 'hours' ? 'Horas de silencio' : q.until ? `Activo hasta las ${hhmm(q.until)}` : 'Activo';
+  const u = Number(c.dndUntil) || 0;
+  $('dnd').value = u === -1 ? 'forever' : u > Date.now() ? (u - Date.now() <= 3600000 ? 'hour' : 'tomorrow') : 'off';
+  const qh = c.quietHours || {};
+  $('qhOn').checked = !!qh.on; $('qhFrom').value = qh.from || '22:00'; $('qhTo').value = qh.to || '08:00';
+  $('respectFocus').checked = c.respectFocus !== false;
+  $('chatty').value = String(Number.isInteger(c.chatty) ? c.chatty : 2);
+  $('motion').value = c.motion || 'auto';
+  $('hideCapture').checked = !!c.hideCapture;
+}
+const calmSet = async p => { try { render(await window.ui.calmSet(p)); } catch (e) { $('calmMsg').textContent = e.message; $('calmMsg').className = 'msg err'; } };
+$('dnd').addEventListener('change', e => calmSet({ dnd: e.target.value }));
+$('qhOn').addEventListener('change', e => calmSet({ quietHours: { on: e.target.checked } }));
+$('qhFrom').addEventListener('change', e => calmSet({ quietHours: { from: e.target.value } }));
+$('qhTo').addEventListener('change', e => calmSet({ quietHours: { to: e.target.value } }));
+$('respectFocus').addEventListener('change', e => calmSet({ respectFocus: e.target.checked }));
+$('chatty').addEventListener('change', e => calmSet({ chatty: Number(e.target.value) }));
+$('motion').addEventListener('change', e => calmSet({ motion: e.target.value }));
+$('hideCapture').addEventListener('change', e => calmSet({ hideCapture: e.target.checked }));
+if (window.ui.onRefresh) window.ui.onRefresh(() => refresh());
 
 // ---------- ✋ permisos desde Pal ----------
 function permRender(s) {
@@ -137,4 +165,4 @@ $('phoneTest').addEventListener('click', async () => {
   b.disabled = false;
   phoneMsg(r.ok ? '¡Enviado! Si no te llega, revisa que estés suscrito a este canal en la app ntfy.' : `No se pudo enviar (${r.error || 'error ' + r.status}).`, r.ok ? 'ok' : 'err');
 });
-window.ui.phone().then(p => { phoneRender(p); if (location.hash === '#phone') $('phone').scrollIntoView(); });
+window.ui.phone().then(p => { phoneRender(p); if (location.hash === '#phone') $('phone').scrollIntoView(); if (location.hash === '#calm') $('calm').scrollIntoView(); });

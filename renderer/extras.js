@@ -9,7 +9,7 @@ const Sound = (() => {
   let on = true;
   const ctx = () => ac || (ac = new AudioContext());
   function tone(freq, dur, type = 'square', vol = 0.04, when = 0, slideTo = null) {
-    if (!on) return;
+    if (!on || (window.Calm && Calm.quiet.on)) return;   // 🤫 en silencio no suena nada
     try {
       const c = ctx();
       const t0 = c.currentTime + when;
@@ -120,7 +120,7 @@ const Extras = (() => {
     return [r.x + ride.offX, r.y - FEET];
   }
   function maybeAskRide(f) {
-    if (prefs.ride === 'never' || ride.mode !== 'off' || !rideable(f) || !isFree() || !canAsk()) return;
+    if (prefs.ride === 'never' || ride.mode !== 'off' || !rideable(f) || !isFree() || !canAsk() || (window.Calm && (Calm.quiet.on || Calm.reduce()))) return;
     if (ride.asked.has(f.id) || Date.now() - ride.lastAsk < 120000) return;
     ride.asked.add(f.id);
     ride.lastAsk = Date.now();

@@ -41,4 +41,5 @@ contextBridge.exposeInMainWorld('clawd', {
   openBrain: () => ipcRenderer.send('brain-open'),
   openUi: page => ipcRenderer.invoke('ui:open', page),
   restart: () => ipcRenderer.send('restart'),
+  dnd: v => ipcRenderer.send('dnd', String(v || 'off')),
 });
