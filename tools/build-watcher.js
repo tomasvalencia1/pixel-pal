@@ -10,6 +10,11 @@ const csc = path.join(NET, 'csc.exe');
 const src = path.join(__dirname, '..', 'scripts', 'system-watch.cs');
 const out = path.join(__dirname, '..', 'scripts', 'system-watch.exe');
 
+// Ya compilado y más nuevo que el código: no hace falta (y si Pal está abierto, el .exe está en uso)
+if (fs.existsSync(out) && fs.statSync(out).mtimeMs >= fs.statSync(src).mtimeMs && !process.argv.includes('--force')) {
+  console.log('system-watch.exe ya está al día');
+  process.exit(0);
+}
 if (!fs.existsSync(csc)) { console.error('No encuentro csc.exe de .NET Framework 4 en', NET); process.exit(1); }
 const refs = [
   path.join(NET, 'System.Runtime.dll'),
