@@ -383,8 +383,30 @@ setInterval(() => {
 }, 10000);
 
 const nowPlaying = document.getElementById('nowplaying');
+// ⭕ Anillos de uso del plan (sesión de 5 h y semana): % libre, color según lo que queda
+const ringsEl = document.getElementById('rings');
+let ringsKey = '';
+function renderRings() {
+  const u = currentUsageFrom(state.usage);
+  const rows = u ? [['5 h', u.five_hour, false], ['sem', u.seven_day, true]].filter(r => r[1]) : [];
+  const key = rows.map(([l, w]) => `${l}:${Math.round(w.used_percentage)}`).join('|');
+  ringsEl.classList.toggle('hidden', !rows.length);
+  if (key === ringsKey) return;
+  ringsKey = key;
+  const R = 13, L = 2 * Math.PI * R;
+  ringsEl.innerHTML = rows.map(([label, w, weekly]) => {
+    const left = Math.max(0, Math.min(100, Math.round(100 - w.used_percentage)));
+    const cls = left < 15 ? 'low' : left < 40 ? 'mid' : 'ok';
+    return `<div class="ring ${cls}" title="${weekly ? 'Semana' : 'Sesión de 5 h'}: ${left}% libre · ${resetText(w.resets_at, weekly)}">
+      <svg viewBox="0 0 32 32"><circle class="bg" cx="16" cy="16" r="${R}"/><circle class="fg" cx="16" cy="16" r="${R}" stroke-dasharray="${(L * left / 100).toFixed(1)} ${L.toFixed(1)}"/></svg>
+      <b>${left}</b><span>${label}</span></div>`;
+  }).join('');
+}
+ringsEl.addEventListener('click', e => { e.stopPropagation(); const u = currentUsageFrom(state.usage); if (u) Speech.say('Así va tu plan:', 2, { usage: u, dur: 7000 }); });
+
 function renderPanel() {
   Panel.render(cards, state.sessions, Date.now() - clockOffset);
+  renderRings();
   const m = media();
   if (m.playing && (m.music || matchSpecial(m))) {
     nowPlaying.className = '';

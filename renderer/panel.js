@@ -25,6 +25,43 @@ const Panel = (() => {
     }
   }
 
+  // 🦀 mini-Pal de pixel art para cada sesión, con los colores del personaje actual y la cara según el estado.
+  // Dos fotogramas: el panel se repinta cada segundo y se alternan (trabajando da saltitos, durmiendo cambian las z).
+  const BODY = ['...OOOOOOOOOO...', '...OOOOOOOOOO...', '.OOOOEOOOOEOOOO.', '.OOOOEOOOOEOOOO.', '...OOOOOOOOOO...', '...OOOOOOOOOO...', '...SSSSSSSSSS...', '....S.S..S.S....', '....S.S..S.S....'];
+  const MINI_W = 16, MINI_H = 14;
+  let miniCache = { key: '', icons: {} };
+  function miniPal(status, frame) {
+    const C = (window.ClawdSprite && ClawdSprite.api && ClawdSprite.api.C) || { body: '#D97757', shade: '#B85C3E', eye: '#1F1A17', white: '#FFFFFF' };
+    const key = `${C.body}|${C.shade}|${C.eye}`;
+    if (miniCache.key !== key) miniCache = { key, icons: {} };
+    const id = `${status}-${frame}`;
+    if (miniCache.icons[id]) return miniCache.icons[id];
+    const cv = document.createElement('canvas');
+    cv.width = MINI_W; cv.height = MINI_H;
+    const g = cv.getContext('2d');
+    const px = (x, y, c) => { g.fillStyle = c; g.fillRect(x, y, 1, 1); };
+    const bob = status === 'working' && frame ? -1 : 0;
+    const oy = 5 + bob;
+    BODY.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch === 'O' || ch === 'E') px(x, oy + y, C.body);
+      else if (ch === 'S') px(x, oy + y, C.shade);
+    }));
+    // ojos
+    const eye = (x, y) => px(x, oy + y, C.eye);
+    if (status === 'done') { eye(4, 2); eye(5, 1); eye(6, 2); eye(9, 2); eye(10, 1); eye(11, 2); }          // ^ ^
+    else if (status === 'idle' || status === 'limited') { eye(4, 3); eye(5, 3); eye(10, 3); eye(11, 3); }       // dormido
+    else if (status === 'working') { eye(5, 3); eye(10, 3); eye(5, 2); eye(10, 2); }                           // concentrado
+    else { eye(5, 2); eye(5, 3); eye(10, 2); eye(10, 3); px(5, oy + 2, C.white || '#fff'); px(10, oy + 2, C.white || '#fff'); }
+    // lo de encima
+    if (status === 'waiting') { for (const y of [0, 1, 2]) px(14, y, '#E5484D'); px(14, 4, '#E5484D'); }
+    else if (status === 'done') { px(11, 2, '#5BE37D'); px(12, 3, '#5BE37D'); px(13, 2, '#5BE37D'); px(14, 1, '#5BE37D'); px(15, 0, '#5BE37D'); }
+    else if (status === 'thinking') { const c = '#C9BFAE'; px(frame ? 11 : 10, 2, c); px(12, 2, c); px(frame ? 15 : 14, 2, c); }
+    else if (status === 'working') { const c = '#F2C14E'; if (frame) { px(14, 1, c); px(13, 2, c); px(15, 2, c); px(14, 3, c); } else px(14, 2, c); }
+    else if (status === 'limited') { const c = '#F2C14E'; px(13, 0, c); px(14, 0, c); px(15, 0, c); px(14, 1, c); px(14, 2, c); px(13, 3, c); px(14, 3, c); px(15, 3, c); }
+    else { const c = '#A39A92'; const dx = frame ? 1 : 0; px(12 + dx, 0, c); px(13 + dx, 0, c); px(13 + dx, 1, c); px(12 + dx, 2, c); px(13 + dx, 2, c); }   // z
+    return (miniCache.icons[id] = cv.toDataURL());
+  }
+
   function card(s, now) {
     const tasks = s.tasks || [];
     const done = tasks.filter(t => t.status === 'completed').length;
@@ -41,7 +78,7 @@ const Panel = (() => {
     return `
       <div class="card ${s.status}${s.win ? ' jump' : ''}" data-id="${esc(s.id)}" title="${s.win ? 'Clic: ir a su ventana (' + esc(s.win.app) + ')' : esc(s.cwd)}">
         <div class="row">
-          <span class="dot ${s.status}"></span>
+          <img class="mini" alt="" src="${miniPal(s.status, Math.floor(now / 1000) % 2)}">
           <span class="name">${esc(s.project)}</span>
           ${s.win ? `<span class="app-chip">↗ ${esc(s.win.app)}</span>` : ''}
           <span class="ago">${ago(now - s.lastEvent)}</span>
@@ -73,5 +110,5 @@ const Panel = (() => {
     if (l.textContent !== label) l.textContent = label;
   }
 
-  return { render, shortTool, tile };
+  return { render, shortTool, tile, miniPal };
 })();

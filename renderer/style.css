@@ -348,3 +348,18 @@ body.talk-open #bubble:not(.ask), body.talk-open #caption { visibility: hidden; 
 .p-section { display: flex; justify-content: space-between; align-items: center; margin: 2px 2px 6px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .p-section #pCount { text-transform: none; letter-spacing: 0; font-weight: 500; }
 #panel .empty { padding: 10px 6px; font-size: 12px; }
+
+/* ⭕ anillos de uso del plan */
+.rings { display: flex; gap: 6px; flex: none; cursor: pointer; }
+.ring { position: relative; width: 34px; height: 40px; display: flex; flex-direction: column; align-items: center; }
+.ring svg { width: 30px; height: 30px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 4; }
+.ring .bg { stroke: rgba(255, 255, 255, 0.1); }
+.ring .fg { stroke-linecap: round; transition: stroke-dasharray .4s; }
+.ring.ok .fg { stroke: #5BE37D; }
+.ring.mid .fg { stroke: #F2C14E; }
+.ring.low .fg { stroke: #E5484D; }
+.ring b { position: absolute; top: 8px; width: 100%; text-align: center; font-size: 10px; font-weight: 700; }
+.ring span { font-size: 9px; color: var(--muted); margin-top: -1px; }
+/* 🦀 mini-Pal de cada sesión */
+.card .mini { width: 28px; height: 24px; image-rendering: pixelated; flex: none; margin: -3px 0 -3px -2px; }

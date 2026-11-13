@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:">
   <title>Pixel Pal: Desktop Pet</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,6 +14,7 @@
         <div class="p-top"><span class="p-name" id="pName">Pal</span><span id="pin" class="pin" title="Panel fijado (clic en Pal para soltarlo)">📌</span></div>
         <div id="boost" class="boost" title="Ver tus logros"></div>
       </div>
+      <div id="rings" class="rings hidden" title="Uso de tu plan de Claude"></div>
     </div>
     <div class="tiles">
       <button id="talkbtn" class="tile" type="button" title="Hablar con Pal (Ctrl+Alt+Espacio)"><span class="t-i">💬</span><span class="t-l">Hablar</span></button>
