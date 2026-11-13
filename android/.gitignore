@@ -1,0 +1,7 @@
+# Configuración de Firebase de cada persona (no se comparte)
+app/google-services.json
+local.properties
+.gradle/
+build/
+app/build/
+*.keystore

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { createPhone } = require('../../phone');
 
 function setup({ phone = {}, idle = 0, locked = false } = {}) {
-  let config = { phone: { on: true, ...phone } };
+  let config = { phone: { on: true, provider: 'ntfy', ...phone } };
   const sent = [];
   const sessions = new Map();
   const env = { idle, locked };
@@ -141,4 +141,85 @@ test('la prueba se envía aunque esté apagado', async () => {
   const r = await p.test();
   assert.equal(r.ok, true);
   assert.equal(sent.length, 1);
+});
+
+// ---------- 📲 app propia por Firebase (FCM v1), sin red ----------
+const crypto = require('crypto');
+const { checkKey } = require('../../phone');
+function fcmSetup({ key = true } = {}) {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const sa = { type: 'service_account', project_id: 'pixel-pal-test', client_email: 'pal@pixel-pal-test.iam.gserviceaccount.com', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }), token_uri: 'https://oauth2.googleapis.com/token' };
+  let config = { phone: { on: true, provider: 'app', mode: 'always' } };
+  const calls = [];
+  const p = createPhone({
+    getConfig: () => config, saveConfig: patch => { config = { ...config, ...patch }; },
+    idleSeconds: () => 0, isLocked: () => false, getSession: () => null,
+    readKey: () => (key ? sa : null), pcName: 'MI-PC',
+    fetch: async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('oauth2')) return { ok: true, status: 200, json: async () => ({ access_token: 'tok-123', expires_in: 3600 }) };
+      return { ok: true, status: 200 };
+    },
+  });
+  return { p, calls, publicKey, sa };
+}
+
+test('app: el QR lleva el tema secreto y el nombre del PC; el código se puede escribir', () => {
+  const { p } = fcmSetup();
+  const st = p.status();
+  assert.match(st.fcmTopic, /^pp_[0-9a-f]{24}$/);
+  assert.equal(st.pairUrl, `pixelpal://pair?t=${st.fcmTopic}&n=MI-PC`);
+  assert.equal(st.pairCode.replace(/ /g, ''), st.fcmTopic.slice(3));
+  assert.equal(st.keyOk, true);
+  assert.equal(st.keyProject, 'pixel-pal-test');
+});
+
+test('app: firma el JWT con la clave y envía al tema con el formato de FCM v1', async () => {
+  const { p, calls, publicKey, sa } = fcmSetup();
+  p.event('waiting', { id: 'ses-9', project: 'mi-app', status: 'waiting', message: 'Quiere usar Bash' });
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(calls.length, 2);
+  // 1) token: JWT RS256 válido para la cuenta de servicio
+  const jwt = decodeURIComponent(calls[0].opts.body.match(/assertion=([^&]+)/)[1]);
+  const [h, c, s] = jwt.split('.');
+  const claims = JSON.parse(Buffer.from(c, 'base64url').toString());
+  assert.equal(claims.iss, sa.client_email);
+  assert.equal(claims.scope, 'https://www.googleapis.com/auth/firebase.messaging');
+  assert.ok(crypto.createVerify('RSA-SHA256').update(`${h}.${c}`).verify(publicKey, Buffer.from(s, 'base64url')), 'firma válida');
+  // 2) mensaje
+  assert.equal(calls[1].url, 'https://fcm.googleapis.com/v1/projects/pixel-pal-test/messages:send');
+  assert.equal(calls[1].opts.headers.authorization, 'Bearer tok-123');
+  const m = JSON.parse(calls[1].opts.body).message;
+  assert.equal(m.topic, p.status().fcmTopic);
+  assert.match(m.notification.title, /mi-app: Claude necesita tu permiso/);
+  assert.equal(m.data.kind, 'waiting');
+  assert.equal(m.data.session, 'ses-9');
+  assert.equal(m.android.priority, 'HIGH');
+  assert.equal(m.android.notification.channel_id, 'pal_urgent');
+  for (const v of Object.values(m.data)) assert.equal(typeof v, 'string', 'FCM solo admite textos en data');
+});
+
+test('app: reutiliza el token durante la hora', async () => {
+  const { p, calls } = fcmSetup();
+  await p.test();
+  await p.test();
+  assert.equal(calls.filter(x => x.url.includes('oauth2')).length, 1);
+  assert.equal(calls.filter(x => x.url.includes('fcm.googleapis')).length, 2);
+});
+
+test('app: sin clave de Firebase no envía y lo dice', async () => {
+  const { p, calls } = fcmSetup({ key: false });
+  const r = await p.test();
+  assert.equal(r.ok, false);
+  assert.match(r.error, /clave de Firebase/);
+  assert.equal(calls.length, 0);
+  assert.equal(p.status().keyOk, false);
+});
+
+test('checkKey: acepta solo claves de cuenta de servicio válidas', () => {
+  const { sa } = fcmSetup();
+  assert.ok(checkKey(JSON.stringify(sa)));
+  assert.equal(checkKey('{"type":"authorized_user"}'), null);
+  assert.equal(checkKey({ ...sa, private_key: '-----BEGIN PRIVATE KEY-----\nbasura\n-----END PRIVATE KEY-----' }), null);
+  assert.equal(checkKey('no es json'), null);
 });

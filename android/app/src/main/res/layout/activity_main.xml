@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <ImageView
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="24dp"
+            android:contentDescription="@null"
+            android:src="@drawable/pal_big" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:text="@string/app_name"
+            android:textColor="@color/text"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/card"
+            android:lineSpacingExtra="4dp"
+            android:padding="16dp"
+            android:textColor="@color/text"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/warn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="⚠️ Las notificaciones están desactivadas: no verás los avisos."
+            android:textColor="@color/alert"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/scan"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="📷 Escanear el QR de Pal" />
+
+        <Button
+            android:id="@+id/code"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⌨️ Escribir el código" />
+
+        <Button
+            android:id="@+id/notifs"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="🔔 Ajustes de notificaciones" />
+
+        <Button
+            android:id="@+id/test"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="👀 Ver cómo es un aviso" />
+
+        <Button
+            android:id="@+id/unpair"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Desemparejar" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Pal solo envía el nombre del proyecto y el estado; nunca lo que escribes ni tu código."
+            android:textColor="@color/muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>

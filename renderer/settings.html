@@ -13,7 +13,7 @@
     .phone-setup code { user-select: all; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; }
     .btn.tiny { padding: 2px 8px; font-size: 11px; }
     .num { width: 46px; }
-    .checks { gap: 14px; flex-wrap: wrap; }
+    .checks, .provider { gap: 14px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -39,19 +39,40 @@
       <div class="row">
         <div class="grow">
           <div><b>Avisarme en el teléfono</b> <span id="phonePill" class="pill no">Apagado</span></div>
-          <div class="muted small">Cuando Claude termina, necesita tu permiso o se detiene. Usa la app gratis <b>ntfy</b> (sin cuenta).</div>
+          <div class="muted small">Cuando Claude termina, necesita tu permiso o se detiene, estés donde estés.</div>
         </div>
         <label class="switch"><input type="checkbox" id="phoneOn"><span></span></label>
       </div>
       <div id="phoneBody" hidden>
-        <div class="phone-setup">
-          <img id="phoneQr" alt="Código QR del canal" width="150" height="150">
-          <ol class="small">
-            <li>Instala <b>ntfy</b> en tu móvil (Play Store o App Store).</li>
-            <li>Escanea este código con la cámara, o en la app pulsa <b>+</b> y escribe el canal:</li>
-            <li class="topic"><code id="phoneTopic">…</code> <button class="btn tiny" id="phoneCopy" type="button">Copiar</button></li>
-            <li>Pulsa <b>Enviar prueba</b> y debería sonar tu móvil.</li>
-          </ol>
+        <div class="row small provider">
+          <label><input type="radio" name="phoneProv" value="app"> 📲 App <b>Pixel Pal · Avisos</b> (Android, recomendado)</label>
+          <label><input type="radio" name="phoneProv" value="ntfy"> App <b>ntfy</b></label>
+        </div>
+        <!-- App propia por Firebase -->
+        <div id="provApp">
+          <div class="phone-setup">
+            <img class="qr" alt="Código QR para emparejar el móvil" width="150" height="150">
+            <ol class="small">
+              <li>Clave de Firebase: <span id="keyState" class="pill no">falta</span>
+                <button class="btn tiny" id="keyBtn" type="button">Cargar clave…</button></li>
+              <li>Instala la app <b>Pixel Pal · Avisos</b> en tu móvil <button class="btn tiny" id="apkBtn" type="button">Mostrar el APK</button></li>
+              <li>En la app pulsa <b>Escanear el QR de Pal</b> y apunta a este código, o escribe:</li>
+              <li class="topic"><code id="pairCode">…</code></li>
+              <li>Pulsa <b>Enviar prueba</b>.</li>
+            </ol>
+          </div>
+        </div>
+        <!-- ntfy -->
+        <div id="provNtfy" hidden>
+          <div class="phone-setup">
+            <img class="qr" alt="Código QR del canal" width="150" height="150">
+            <ol class="small">
+              <li>Instala <b>ntfy</b> en tu móvil (Play Store o App Store).</li>
+              <li>Escanea este código con la cámara, o en la app pulsa <b>+</b> y escribe el canal:</li>
+              <li class="topic"><code id="phoneTopic">…</code> <button class="btn tiny" id="phoneCopy" type="button">Copiar</button></li>
+              <li>Pulsa <b>Enviar prueba</b> y debería sonar tu móvil.</li>
+            </ol>
+          </div>
         </div>
         <div class="row small">
           <label><input type="radio" name="phoneMode" value="away"> Solo si no estoy delante del PC (más de <input type="number" id="phoneAway" min="1" max="60" class="num"> min sin tocarlo, o bloqueado)</label>
@@ -64,7 +85,7 @@
         </div>
         <div class="row">
           <button class="btn primary" id="phoneTest" type="button">Enviar prueba</button>
-          <button class="btn" id="phoneNew" type="button" title="Crea un canal nuevo: el móvil tendrá que suscribirse otra vez">Cambiar canal</button>
+          <button class="btn" id="phoneNew" type="button" title="Crea un código nuevo: el móvil tendrá que emparejarse otra vez">Cambiar código</button>
           <span class="grow"></span>
         </div>
         <div class="msg" id="phoneMsg"></div>

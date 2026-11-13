@@ -61,8 +61,14 @@ function saveConfig(patch) { config = { ...config, ...patch }; writeJson(CONFIG_
 if (!(config.gpu === true || process.env.PAL_GPU === '1')) app.disableHardwareAcceleration();
 
 // 📱 Avisos al móvil (ntfy): cuando Claude termina, pide permiso o se detiene y tú no estás delante del PC
-const { createPhone } = require('./phone');
+const { createPhone, checkKey } = require('./phone');
+// clave de la cuenta de servicio de Firebase (para la app propia); solo se guarda aquí, nunca se envía
+const FIREBASE_KEY_FILE = path.join(DIR, 'firebase-key.json');
+// APK de la app para el móvil (se crea al compilar android/; ver README)
+const APK_FILE = path.join(__dirname, 'dist', 'Pixel-Pal-Avisos.apk');
 const phone = createPhone({
+  readKey: () => readJson(FIREBASE_KEY_FILE, null),
+  pcName: os.hostname(),
   getConfig: () => config,
   saveConfig,
   idleSeconds: () => { try { return powerMonitor.getSystemIdleTime(); } catch { return 0; } },
@@ -1072,12 +1078,30 @@ function setupUiIpc() {
   const phoneView = async () => {
     const st = phone.status();
     let qr = '';
-    try { qr = await require('qrcode').toDataURL(st.url, { margin: 1, width: 220, color: { dark: '#1c1a18', light: '#ffffff' } }); } catch { /* sin QR */ }
-    return { ...st, qr };
+    try { qr = await require('qrcode').toDataURL(st.provider === 'app' ? st.pairUrl : st.url, { margin: 1, width: 220, color: { dark: '#1c1a18', light: '#ffffff' } }); } catch { /* sin QR */ }
+    return { ...st, qr, apk: fs.existsSync(APK_FILE) };
   };
   ipcMain.handle('ui:phone', () => phoneView());
   ipcMain.handle('ui:phone-set', (_e, patch) => { phone.set(patch && typeof patch === 'object' ? patch : {}); return phoneView(); });
   ipcMain.handle('ui:phone-test', () => phone.test());
+  // elegir el .json de la cuenta de servicio de Firebase: se comprueba y se copia a la carpeta de Pal
+  ipcMain.handle('ui:phone-key', async () => {
+    const { dialog } = require('electron');
+    const r = await dialog.showOpenDialog(uiWin && !uiWin.isDestroyed() ? uiWin : undefined, {
+      title: 'Clave de Firebase (cuenta de servicio)', properties: ['openFile'], filters: [{ name: 'Clave JSON', extensions: ['json'] }],
+    });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true, view: await phoneView() };
+    let txt = '';
+    try { txt = fs.readFileSync(r.filePaths[0], 'utf8'); } catch (e) { return { ok: false, error: e.message, view: await phoneView() }; }
+    if (!checkKey(txt)) return { ok: false, error: 'Ese archivo no es una clave de cuenta de servicio de Firebase (Configuración del proyecto → Cuentas de servicio → Generar nueva clave privada).', view: await phoneView() };
+    try { fs.writeFileSync(FIREBASE_KEY_FILE, txt, { mode: 0o600 }); } catch (e) { return { ok: false, error: e.message, view: await phoneView() }; }
+    return { ok: true, view: await phoneView() };
+  });
+  ipcMain.handle('ui:phone-apk', () => {
+    if (!fs.existsSync(APK_FILE)) return false;
+    require('electron').shell.showItemInFolder(APK_FILE);
+    return true;
+  });
   ipcMain.handle('ui:finish-tutorial', () => {
     saveConfig({ onboarded: true });
     if (uiWin && !uiWin.isDestroyed()) uiWin.close();

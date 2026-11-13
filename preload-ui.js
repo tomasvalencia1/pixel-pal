@@ -15,4 +15,6 @@ contextBridge.exposeInMainWorld('ui', {
   phone: () => ipcRenderer.invoke('ui:phone'),
   phoneSet: patch => ipcRenderer.invoke('ui:phone-set', patch && typeof patch === 'object' ? patch : {}),
   phoneTest: () => ipcRenderer.invoke('ui:phone-test'),
+  phoneKey: () => ipcRenderer.invoke('ui:phone-key'),
+  phoneApk: () => ipcRenderer.invoke('ui:phone-apk'),
 });

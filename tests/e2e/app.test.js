@@ -27,7 +27,7 @@ async function launch(edition) {
   const ntfyServer = require('http').createServer((req, res) => { let b = ''; req.on('data', c => b += c); req.on('end', () => { try { ntfy.push(JSON.parse(b)); } catch { /* nada */ } res.end('{}'); }); });
   await new Promise(r => ntfyServer.listen(0, '127.0.0.1', r));
   // sin sonidos; avisos al móvil siempre, al servidor falso
-  fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ sound: false, phone: { on: true, mode: 'always', server: `http://127.0.0.1:${ntfyServer.address().port}` } }));
+  fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ sound: false, phone: { on: true, provider: 'ntfy', mode: 'always', server: `http://127.0.0.1:${ntfyServer.address().port}` } }));
   const settings = path.join(home, 'claude-settings.json');
   const legacy = '"C:/node.exe" "C:/x/hooks/clawd-hook.js"';
   const oldShared = curlCommand(7777, TOKEN, 'event');   // conexión antigua de la compartida (puerto viejo)
@@ -180,11 +180,18 @@ for (const edition of ['shared', 'personal']) {
         await P.page.evaluate(() => window.clawd.openUi('settings'));
         const st = await until(() => P.app.windows().find(w => /settings.html/.test(w.url())));
         assert.ok(st);
-        await st.waitForFunction(() => document.getElementById('phoneQr').src.startsWith('data:image/png'), null, { timeout: 8000 });
+        await st.waitForFunction(() => document.querySelector('#provNtfy img.qr').src.startsWith('data:image/png'), null, { timeout: 8000 });
         const r = await st.evaluate(() => ({ topic: document.getElementById('phoneTopic').textContent, on: document.getElementById('phoneOn').checked, hidden: document.getElementById('phoneBody').hidden }));
         assert.match(r.topic, /^pixelpal-/);
         assert.equal(r.on, true);
         assert.equal(r.hidden, false);
+        // la app propia: código de emparejamiento y aviso de que falta la clave de Firebase
+        await st.evaluate(() => document.querySelector('input[name=phoneProv][value=app]').click());
+        await st.waitForFunction(() => !document.getElementById('provApp').hidden && /[0-9a-f]{4} /.test(document.getElementById('pairCode').textContent), null, { timeout: 8000 });
+        const a = await st.evaluate(() => ({ code: document.getElementById('pairCode').textContent, key: document.getElementById('keyState').textContent, qr: document.querySelector('#provApp img.qr').src.slice(0, 15) }));
+        assert.match(a.code, /^[0-9a-f]{4}( [0-9a-f]{4}){5}$/);
+        assert.equal(a.key, 'falta');
+        assert.equal(a.qr, 'data:image/png;');
       });
 
       await t.test('sin errores en ninguna ventana', async () => {

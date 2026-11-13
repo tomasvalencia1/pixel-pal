@@ -11,7 +11,8 @@
     "test:unit": "node --test \"tests/unit/*.test.js\"",
     "icon": "node tools/make-icon.js",
     "dist": "node tools/build-watcher.js && electron-builder --win nsis",
-    "build:watcher": "node tools/build-watcher.js"
+    "build:watcher": "node tools/build-watcher.js",
+    "build:apk": "node tools/build-apk.js"
   },
   "devDependencies": {
     "electron": "^33.4.11",
