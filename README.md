@@ -75,7 +75,7 @@ para que vuelva a jugar. Se recuerda entre reinicios (también está en el menú
 
 ### 💃 Baila con tu música
 Pal lee el panel multimedia de Windows (lo que aparece al subir el volumen) con
-`scripts/media-watch.ps1`. Solo lee qué suena; no envía nada a ningún sitio.
+el vigilante compilado (`scripts/system-watch.exe`). Solo lee qué suena; no envía nada a ningún sitio.
 
 - **Si Claude está trabajando,** sigue con su animación, pero en versión bailando: cabecea al
   ritmo, se balancea, marca el compás con una pata y le salen notas ♪. Cada animación tiene su
@@ -131,7 +131,7 @@ el título dice "Official Video/Audio", "Lyrics", "Letra", "feat.", "remix"…, 
 en YouTube Music. Con clic derecho → **Bailar también con vídeos**, baila con todo lo que suene.
 
 ### 🪟 Pal y Windows
-Un vigilante (`scripts/system-watch.ps1`) lee en local la ventana activa, la inactividad, la
+Un vigilante compilado (`scripts/system-watch.exe`, sin PowerShell ni lectura del teclado) lee en local la ventana activa, la inactividad, la
 intensidad de tecleo, la batería, el portapapeles, si la app de Claude está abierta y la música.
 **No lee qué teclas pulsas** (solo si hay actividad de teclado) y no envía nada a ningún sitio.
 

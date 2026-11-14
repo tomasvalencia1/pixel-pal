@@ -19,6 +19,7 @@ if (fs.existsSync(out) && fs.statSync(out).mtimeMs >= fs.statSync(src).mtimeMs &
 if (!fs.existsSync(csc)) { console.error('No encuentro csc.exe de .NET Framework 4 en', NET); process.exit(1); }
 const refs = [
   path.join(NET, 'System.Runtime.dll'),
+  path.join(NET, 'WPF', 'System.Speech.dll'),   // reconocimiento de voz (micrófono)
   path.join(META, 'Windows.Foundation.winmd'),
   path.join(META, 'Windows.Media.winmd'),
 ];

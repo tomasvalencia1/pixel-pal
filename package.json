@@ -1,6 +1,6 @@
 {
   "name": "clawd-flotante",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Pixel Pal: Desktop Pet — una mascota de escritorio que muestra el progreso de tus sesiones de Claude Code",
   "main": "main.js",
   "private": true,
@@ -39,7 +39,7 @@
       "preload-brain.js",
       "brain.js",
       "renderer/**",
-      "scripts/**",
+      "scripts/*.exe",
       "package.json"
     ],
     "asarUnpack": [
@@ -55,7 +55,8 @@
           ]
         }
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "legalTrademarks": "Pixel Pal"
     },
     "nsis": {
       "oneClick": false,
@@ -68,7 +69,8 @@
       "include": "build/installer.nsh",
       "artifactName": "Pixel-Pal-Setup-${version}.exe",
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "copyright": "© 2026 Pixel Pal"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

@@ -18,7 +18,7 @@ const DIR = process.env.CLAWD_HOME || ED.dataDir;
 fs.mkdirSync(DIR, { recursive: true });
 // Los datos internos de Electron van dentro de la misma carpeta (también aísla la "instancia única")
 if (ED.ownUserData || process.env.CLAWD_HOME) app.setPath('userData', path.join(DIR, 'app-data'));
-// Archivos que no pueden ir dentro del paquete .asar (PowerShell necesita leerlos del disco)
+// Archivos que no pueden ir dentro del paquete .asar (los ejecutables auxiliares se lanzan desde el disco)
 const UNPACKED = __dirname.replace(/app\.asar$/, 'app.asar.unpacked');
 const STATE_FILE = path.join(DIR, 'state.json');
 const CONFIG_FILE = path.join(DIR, 'config.json');
@@ -472,7 +472,7 @@ function setMedia(raw) {
 }
 let lastMediaRaw = { playing: false };
 
-// ---------- vigilante de Windows (scripts/system-watch.exe, o system-watch.ps1 si no se puede) ----------
+// ---------- vigilante de Windows (scripts/system-watch.exe) ----------
 let claudeOn = null;
 function sendSys(o) { if (win && !win.isDestroyed()) win.webContents.send('sys', o); }
 function toDip(r) { try { return screen.screenToDipRect(null, r); } catch { return r; } }
@@ -484,6 +484,7 @@ function onSys(m) {
       updateQuiet();
       break;
     case 'who':
+    case 'listen':
     case 'focus': {
       const cb = watchWait.get(m.req);
       if (cb) { watchWait.delete(m.req); cb(m); }
@@ -521,7 +522,7 @@ function onSys(m) {
   }
 }
 
-// ⚡ Se usa la versión compilada (system-watch.exe, ~10 MB) y, si falla o no está, la de PowerShell (~100 MB).
+// ⚡ Vigilante compilado (system-watch.exe, ~10 MB). Si un antivirus lo bloquea, Pal sigue funcionando sin él.
 let watchExeFailed = false;
 let watchUsesExe = false;
 let fgWindow = 0;
@@ -553,16 +554,17 @@ function startSystemWatch() {
   try { fs.writeFileSync(path.join(DIR, 'track.txt'), '0'); } catch { /* nada */ }
   const env = { ...process.env, CLAWD_TRACK: path.join(DIR, 'track.txt') };
   const exe = path.join(UNPACKED, 'scripts', 'system-watch.exe');
-  const useExe = !watchExeFailed && process.env.PAL_WATCH !== 'ps1' && fs.existsSync(exe);
+  const useExe = !watchExeFailed && fs.existsSync(exe);
+  if (!useExe) { watchUsesExe = false; mediaChild = null; return; }
   watchUsesExe = useExe;
   const startedAt = Date.now();
   let gotData = false;
   try {
     mediaChild = useExe
       ? spawn(exe, [], { windowsHide: true, env })
-      : spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(UNPACKED, 'scripts', 'system-watch.ps1')], { windowsHide: true, env });
-  } catch { if (useExe) { watchExeFailed = true; return startSystemWatch(); } return; }
-  // si el .exe no arranca (bloqueado por un antivirus, sin .NET…), se pasa a PowerShell para siempre en esta sesión
+      : null;   // sin el vigilante compilado, Pal funciona igual pero sin reaccionar a Windows
+  } catch { watchExeFailed = true; return; }
+  // si el .exe no arranca (bloqueado por un antivirus, sin .NET…), no se reintenta en esta sesión
   let ended = false;
   const child = mediaChild;
   const restart = wait => { if (ended) return; ended = true; if (mediaChild === child) mediaChild = null; if (!app.isQuitting) setTimeout(startSystemWatch, wait); };
@@ -983,34 +985,16 @@ function openBrain() {
   brainWin.once('ready-to-show', () => { brainWin.show(); brainWin.focus(); });
   brainWin.on('closed', () => { brainWin = null; });
 }
-// Escucha una frase con scripts/listen.ps1 (solo mientras pulsas el micrófono; se cierra al terminar)
-let listenProc = null;
-function listenOnce() {
-  if (listenProc) return Promise.resolve({ ok: false, error: 'busy' });
-  const base = typeof UNPACKED !== 'undefined' ? UNPACKED : __dirname;
-  return new Promise(resolve => {
-    let out = '';
-    let p;
-    try {
-      p = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(base, 'scripts', 'listen.ps1')], { windowsHide: true });
-    } catch { resolve({ ok: false, error: 'fail' }); return; }
-    listenProc = p;
-    const done = r => {
-      if (listenProc !== p) return;
-      listenProc = null;
-      clearTimeout(tm);
-      try { p.kill(); } catch { /* ya terminó */ }
-      resolve({ ok: !!r.ok, text: r.ok ? String(r.text || '').slice(0, 300) : undefined, error: r.ok ? undefined : String(r.error || 'fail') });
-    };
-    const tm = setTimeout(() => done({ ok: false, error: 'silence' }), 25000);
-    p.stdout.setEncoding('utf8');
-    p.stdout.on('data', d => {
-      out += d;
-      for (const line of out.split(/\r?\n/)) { try { const j = JSON.parse(line); if (j && 'ok' in j) return done(j); } catch { /* línea a medias */ } }
-    });
-    p.on('error', () => done({ ok: false, error: 'fail' }));
-    p.on('exit', () => setTimeout(() => done({ ok: false, error: 'fail' }), 100));
-  });
+// 🎤 Escucha una frase con el reconocimiento de voz de Windows (lo hace el vigilante compilado; solo al pulsar el micrófono)
+let listening = false;
+async function listenOnce() {
+  if (listening) return { ok: false, error: 'busy' };
+  listening = true;
+  try {
+    const r = await watchAsk('listen {id}', 25000);
+    if (!r) return { ok: false, error: watchUsesExe ? 'silence' : 'fail' };
+    return { ok: !!r.ok, text: r.ok ? String(r.text || '').slice(0, 300) : undefined, error: r.ok ? undefined : String(r.error || 'fail') };
+  } finally { listening = false; }
 }
 let shopWin = null;
 function currentLevel() { const p = readJson(path.join(DIR, 'progress.json'), null); return CATALOG.levelOf(p && p.xp); }
@@ -1282,10 +1266,7 @@ function openSessionsWindow(file) {
 }
 
 // Trae la ventana de la app de Claude al frente
-function activateClaude() {
-  const ps = "$p = Get-Process claude -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle } | Select-Object -First 1; if ($p) { (New-Object -ComObject WScript.Shell).AppActivate($p.Id) | Out-Null }";
-  try { spawn('powershell.exe', ['-NoProfile', '-Command', ps], { windowsHide: true, detached: true, stdio: 'ignore' }).unref(); } catch { /* nada */ }
-}
+function activateClaude() { watchAsk('focusapp {id} claude', 1500); }
 
 function sessAction(a) {
   if (!a || typeof a !== 'object') return;

@@ -10,12 +10,20 @@
 //   media   qué suena en el panel multimedia de Windows
 // No envía nada a ningún sitio: la salida solo la lee Pal. Se compila con tools/build-watcher.js.
 using System;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+[assembly: AssemblyTitle("Pixel Pal - vigilante de Windows")]
+[assembly: AssemblyDescription("Ayudante de Pixel Pal: ventana activa, inactividad, batería y música. No envía nada a internet.")]
+[assembly: AssemblyCompany("Pixel Pal")]
+[assembly: AssemblyProduct("Pixel Pal")]
+[assembly: AssemblyCopyright("Pixel Pal")]
+[assembly: AssemblyVersion("1.11.0.0")]
+[assembly: AssemblyFileVersion("1.11.0.0")]
 
 static class W {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
@@ -35,24 +43,27 @@ static class W {
   [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr m, ref MONITORINFO i);
   [DllImport("user32.dll")] public static extern bool GetLastInputInfo(ref LASTINPUTINFO i);
   [DllImport("user32.dll")] public static extern uint GetClipboardSequenceNumber();
-  [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int k);
+  [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+  [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT p);
+  [DllImport("user32.dll")] public static extern bool IsClipboardFormatAvailable(uint format);
   [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
   [DllImport("kernel32.dll")] public static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS s);
   // ¿Windows está en No molestar, en una presentación o con un juego a pantalla completa?
   [DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int state);
 
-  // ¿Se pulsó alguna tecla desde la última vez? Solo devuelve sí/no: NO guarda qué tecla.
-  // Ignora botones del ratón, Shift/Ctrl/Alt/Win solos e Imprimir pantalla.
-  public static bool AnyKey() {
-    bool any = false;
-    for (int k = 0x08; k <= 0xFE; k++) {
-      if ((k >= 0x10 && k <= 0x12) || k == 0x14 || k == 0x2C || k == 0x5B || k == 0x5C || (k >= 0xA0 && k <= 0xA5)) continue;
-      if ((GetAsyncKeyState(k) & 0x8001) != 0) any = true;
-    }
-    return any;
+  // ¿Hubo actividad (teclado o ratón) desde la última vez sin que se moviera el ratón? = probablemente tecleas.
+  // No mira el teclado: solo la hora del último uso que da Windows y la posición del ratón.
+  static uint lastInput; static POINT lastPos;
+  public static bool Typing() {
+    var li = new LASTINPUTINFO(); li.cbSize = 8; GetLastInputInfo(ref li);
+    POINT p; GetCursorPos(out p);
+    bool typing = li.dwTime != lastInput && p.X == lastPos.X && p.Y == lastPos.Y;
+    lastInput = li.dwTime; lastPos = p;
+    return typing;
   }
-  public static bool PrintScreen() { return (GetAsyncKeyState(0x2C) & 0x8001) != 0; }
+  // ¿Lo que se copió es una imagen? (no se lee el portapapeles: solo el tipo)
+  public static bool ClipIsImage() { return IsClipboardFormatAvailable(2) || IsClipboardFormatAvailable(8) || IsClipboardFormatAvailable(17); }
   public static RECT Rect(IntPtr h) {
     RECT r;
     if (DwmGetWindowAttribute(h, 9, out r, 16) != 0) GetWindowRect(h, out r);
@@ -137,7 +148,6 @@ static class Win {
   [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr h);
   [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
-  [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
 
   static ushort Port(uint p) { return (ushort)(((p & 0xFF) << 8) | ((p >> 8) & 0xFF)); }
 
@@ -209,6 +219,16 @@ static class Win {
     return o.N("hwnd", 0).ToString();
   }
 
+  // Trae al frente la ventana principal de un programa (p. ej. la app de Claude)
+  public static string FocusApp(string req, string name) {
+    foreach (var pr in Process.GetProcessesByName(name)) {
+      IntPtr h = pr.MainWindowHandle;
+      pr.Dispose();
+      if (h != IntPtr.Zero) return Focus(req, h.ToInt64());
+    }
+    return new J().S("t", "focus").S("req", req).B("ok", false).ToString();
+  }
+
   // Trae una ventana al frente (la restaura si estaba minimizada)
   public static string Focus(string req, long hwnd) {
     var h = new IntPtr(hwnd);
@@ -221,9 +241,8 @@ static class Win {
       AttachThreadInput(me, fgThread, true);
       SetForegroundWindow(h); BringWindowToTop(h);
       AttachThreadInput(me, fgThread, false);
-      if (W.GetForegroundWindow() != h) {   // último recurso: Windows deja cambiar el foco tras una pulsación de Alt
-        keybd_event(0x12, 0, 0, UIntPtr.Zero); keybd_event(0x12, 0, 2, UIntPtr.Zero);
-        SetForegroundWindow(h);
+      if (W.GetForegroundWindow() != h) {   // último recurso: minimizar y restaurar la trae al frente
+        ShowWindow(h, 6); ShowWindow(h, 9); SetForegroundWindow(h);
       }
       ok = W.GetForegroundWindow() == h;
     }
@@ -240,12 +259,50 @@ static class Win {
           try {
             if (p.Length >= 4 && p[0] == "who") emit(Who(p[1], int.Parse(p[2]), int.Parse(p[3]), p.Length > 4 ? p[4] : ""));
             else if (p.Length >= 3 && p[0] == "focus") emit(Focus(p[1], long.Parse(p[2])));
+            else if (p.Length >= 3 && p[0] == "focusapp") emit(FocusApp(p[1], p[2]));
+            else if (p.Length >= 2 && p[0] == "listen") Voice.Listen(p[1], emit);
           } catch { }
         }
       } catch { }
     });
     t.IsBackground = true;
     t.Start();
+  }
+}
+
+// ---------- 🎤 escuchar una frase con el reconocimiento de voz de Windows (sin internet) ----------
+// Solo cuando pulsas el micrófono de Pal. Antes lo hacía listen.ps1 con PowerShell.
+static class Voice {
+  static int busy = 0;
+  public static void Listen(string req, Action<string> emit) {
+    if (Interlocked.Exchange(ref busy, 1) == 1) { emit(new J().S("t", "listen").S("req", req).B("ok", false).S("error", "busy").ToString()); return; }
+    var t = new Thread(() => {
+      string line;
+      try { line = Recognize(req); }
+      catch (Exception e) { line = new J().S("t", "listen").S("req", req).B("ok", false).S("error", "fail").S("detail", e.Message).ToString(); }
+      Interlocked.Exchange(ref busy, 0);
+      emit(line);
+    });
+    t.IsBackground = true;
+    t.Start();
+  }
+  static string Recognize(string req) {
+    var o = new J().S("t", "listen").S("req", req);
+    System.Speech.Recognition.RecognizerInfo info = null;
+    foreach (var r in System.Speech.Recognition.SpeechRecognitionEngine.InstalledRecognizers())
+      if (r.Culture.Name.StartsWith("es")) { info = r; break; }
+    if (info == null) return o.B("ok", false).S("error", "noSpanish").ToString();
+    using (var eng = new System.Speech.Recognition.SpeechRecognitionEngine(info)) {
+      eng.LoadGrammar(new System.Speech.Recognition.DictationGrammar());
+      try { eng.SetInputToDefaultAudioDevice(); } catch { return o.B("ok", false).S("error", "noMic").ToString(); }
+      eng.InitialSilenceTimeout = TimeSpan.FromSeconds(6);
+      eng.BabbleTimeout = TimeSpan.FromSeconds(4);
+      eng.EndSilenceTimeout = TimeSpan.FromMilliseconds(900);
+      eng.EndSilenceTimeoutAmbiguous = TimeSpan.FromMilliseconds(1200);
+      var res = eng.Recognize(TimeSpan.FromSeconds(15));
+      if (res != null && !string.IsNullOrEmpty(res.Text)) return o.B("ok", true).S("text", res.Text).N("confidence", (long)Math.Round(res.Confidence * 100)).ToString();
+      return o.B("ok", false).S("error", "silence").ToString();
+    }
   }
 }
 
@@ -284,7 +341,7 @@ static class Program {
     if (string.IsNullOrEmpty(trackFile)) trackFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".clawd-flotante", "track.txt");
     string lastFg = "", lastMedia = "", lastTrack = "";
     uint lastClip = W.GetClipboardSequenceNumber();
-    int lastClaude = -1, typeHits = 0, prtAt = -1000, lastNotif = -1;
+    int lastClaude = -1, typeHits = 0, lastNotif = -1;
     long tick = 0;
     // Si Pal se cierra, la salida se rompe y este proceso termina solo
     while (true) {
@@ -314,9 +371,8 @@ static class Program {
       } catch { }
 
       try {
-        // ---- tecleo (solo intensidad: hubo o no hubo teclas, nunca cuáles) ----
-        if (W.AnyKey()) typeHits++;
-        if (W.PrintScreen()) prtAt = (int)tick;
+        // ---- tecleo (solo intensidad, por la hora del último uso: nunca se mira el teclado) ----
+        if (W.Typing()) typeHits++;
         if (tick % 10 == 0) { Emit(new J().S("t", "type").N("n", typeHits).ToString()); typeHits = 0; }
         if (tick % 25 == 0) {
           var li = new W.LASTINPUTINFO(); li.cbSize = 8; W.GetLastInputInfo(ref li);
@@ -325,12 +381,12 @@ static class Program {
       } catch { }
 
       try {
-        // ---- portapapeles: solo cuenta como captura si se usó ImpPnt o la herramienta de recortes ----
+        // ---- portapapeles: es captura si se copió una imagen o está abierta la herramienta de recortes ----
         uint seq = W.GetClipboardSequenceNumber();
         if (seq != lastClip) {
           lastClip = seq;
           bool snip = Running("ScreenClippingHost", "SnippingTool", "ScreenSketch");
-          Emit(new J().S("t", "clip").N("seq", seq).B("shot", snip || (tick - prtAt) < 25).ToString());
+          Emit(new J().S("t", "clip").N("seq", seq).B("shot", snip || W.ClipIsImage()).ToString());
         }
       } catch { }
 
