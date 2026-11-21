@@ -33,11 +33,31 @@ function curlCommand(port, token, route) {
 // ✋ Permisos: Claude Code pregunta a Pal antes de enseñar el diálogo; Pal responde permitir, denegar o nada
 const PERMISSION = 'PermissionRequest';
 
+// 🚀 La edición personal usa su hook de Node (hooks/clawd-hook.js), que además ABRE Pal si está cerrado.
+// curl solo puede avisar a un Pal ya abierto. Si no hay Node instalado, se usa curl igualmente.
+function findNode() {
+  const dirs = [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs'), ...String(process.env.PATH || '').split(path.delimiter)];
+  for (const d of dirs) {
+    if (!d) continue;
+    const p = path.join(d.replace(/"/g, ''), process.platform === 'win32' ? 'node.exe' : 'node');
+    try { if (fs.statSync(p).isFile() && !/electron/i.test(p)) return p; } catch { /* no está */ }
+  }
+  return null;
+}
+const nodeCommand = (node, script) => `"${node.replace(/\\/g, '/')}" "${script.replace(/\\/g, '/')}"`;
+
 // opts: { settings: ruta de settings.json, legacy: reconocer los hooks de Node de la edición personal }
 function create(opts = {}) {
   // Se puede cambiar para pruebas, para no tocar la configuración real
   const SETTINGS = opts.settings || process.env.CLAWD_CLAUDE_SETTINGS || path.join(os.homedir(), '.claude', 'settings.json');
   const legacyOn = opts.legacy !== undefined ? !!opts.legacy : process.env.PAL_EDITION === 'personal';
+  // Ruta del hook de Node de la edición personal (la pone su main.js); sin ella, siempre curl
+  const legacyHook = opts.legacyHook !== undefined ? opts.legacyHook : process.env.PAL_LEGACY_HOOK;
+  const legacyCommand = () => {
+    if (!legacyOn || !legacyHook || !fs.existsSync(legacyHook)) return null;
+    const node = opts.node !== undefined ? opts.node : findNode();
+    return node ? nodeCommand(node, legacyHook) : null;
+  };
 
   const claudeCodeFound = () => fs.existsSync(path.dirname(SETTINGS));
 
@@ -99,7 +119,7 @@ function create(opts = {}) {
     }
     removeWhere(settings, cmd => isOurCurl(cmd, port, token));
     settings.hooks = settings.hooks || {};
-    const command = curlCommand(port, token, 'event');
+    const command = legacyCommand() || curlCommand(port, token, 'event');
     for (const [event, matcher] of EVENTS) {
       const entry = { hooks: [{ type: 'command', command, timeout: 5 }] };
       if (matcher) entry.matcher = matcher;

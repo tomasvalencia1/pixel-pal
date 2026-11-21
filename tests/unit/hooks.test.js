@@ -139,3 +139,25 @@ test('un settings.json roto nunca se sobrescribe', () => {
   assert.ok(h.status(7778, 'tok').error);
   assert.equal(h.upToDate(7778, 'tok'), true, 'si no se puede leer, no se toca');
 });
+
+test('la personal instala su hook de Node (abre Pal solo al iniciar Claude Code) y lo cambia por los de curl', () => {
+  const hookFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'pal-hk-')), 'clawd-hook.js');
+  fs.writeFileSync(hookFile, '');
+  const file = tmpSettings({ hooks: { Stop: [entry(curlCommand(7777, 'tok', 'event')), entry(USER_HOOK)] } });
+  const h = create({ settings: file, legacy: true, legacyHook: hookFile, node: 'C:\\Program Files\\nodejs\\node.exe' });
+  h.install(7777, 'tok');
+  const s = read(file);
+  const want = `"C:/Program Files/nodejs/node.exe" "${hookFile.replace(/\\/g, '/')}"`;
+  for (const [ev] of EVENTS) assert.deepEqual(s.hooks[ev].flatMap(e => e.hooks).map(x => x.command).filter(c => c !== USER_HOOK), [want], ev);
+  assert.ok(commands(s).includes(USER_HOOK));
+  assert.equal(s.hooks[PERMISSION][0].hooks[0].command, curlCommand(7777, 'tok', 'permission'));
+  assert.equal(h.upToDate(7777, 'tok'), true);
+});
+
+test('sin Node instalado, la personal usa curl', () => {
+  const hookFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'pal-hk-')), 'clawd-hook.js');
+  fs.writeFileSync(hookFile, '');
+  const file = tmpSettings();
+  create({ settings: file, legacy: true, legacyHook: hookFile, node: null }).install(7777, 'tok');
+  assert.equal(read(file).hooks.Stop[0].hooks[0].command, curlCommand(7777, 'tok', 'event'));
+});

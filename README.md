@@ -4,7 +4,19 @@ Un Pal en pixel art que flota **siempre en primer plano** sobre el escritorio y 
 y el progreso de tareas de todas tus sesiones de Claude Code: la pestaña Code de la app de escritorio,
 la terminal y los IDE.
 
-> Proyecto personal, no oficial. Pal es la mascota de Anthropic; el sprite está dibujado en código.
+> Proyecto independiente y no oficial, sin relación con Anthropic. Claude y Claude Code son marcas de Anthropic.
+> Todos los sprites están dibujados en código.
+
+**⬇️ Descarga el instalador para Windows en [itch.io](https://tomas-dev.itch.io/pixel-pal)** · 💡 [Sugiere una función](https://docs.google.com/forms/d/e/1FAIpQLScwqisVD56xnv6LsIlkoeaWs3bIc9qfKq-j2yYxf0gDp31MJw/viewform)
+
+| Plataforma | Estado |
+|---|---|
+| 🪟 Windows 10 / 11 | ✅ Disponible |
+| 🐧 Linux | 🔜 Próximamente |
+| 🍎 macOS | 🔜 Próximamente |
+
+> ⚠️ El instalador no está firmado digitalmente (el certificado cuesta dinero), así que Windows puede mostrar
+> «Windows protegió tu PC». Pulsa **Más información → Ejecutar de todas formas**. Análisis en VirusTotal: 0/65.
 
 ## Uso
 
