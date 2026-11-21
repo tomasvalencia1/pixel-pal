@@ -301,3 +301,11 @@ Claude Code ──hooks──▶ hooks/clawd-hook.js ──POST──▶ 127.0.0
 - Las sesiones en la nube y los chats normales de claude.ai no ejecutan hooks locales, así que no aparecen.
 - El progreso X/Y solo aparece si Claude creó una lista de tareas en esa sesión.
 - Los juegos en pantalla completa exclusiva pueden tapar cualquier ventana, también a Pal.
+
+## Licencia
+
+Código abierto bajo la [licencia MIT](LICENSE): puedes usarlo, copiarlo, modificarlo y distribuirlo
+(también en proyectos propios o comerciales) siempre que mantengas el aviso de copyright y la licencia.
+
+¿Quieres contribuir? Abre un issue o un pull request, o deja tu idea en el
+[formulario de sugerencias](https://docs.google.com/forms/d/e/1FAIpQLScwqisVD56xnv6LsIlkoeaWs3bIc9qfKq-j2yYxf0gDp31MJw/viewform).
